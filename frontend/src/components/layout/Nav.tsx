@@ -47,7 +47,7 @@ export function Nav() {
           className="text-foreground uppercase text-sm hover:text-primary transition-colors duration-300"
           style={{ fontFamily: "var(--font-serif)", letterSpacing: "0.25em" }}
         >
-          Marcus <span className="text-primary">Cole</span>
+          Sapthagiri <span className="text-primary">Studio</span>
         </Link>
 
         {/* Desktop Nav */}

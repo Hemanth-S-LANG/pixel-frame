@@ -228,3 +228,34 @@ export const adminUpdateBlockReason = (data: { date: string; reason: string }) =
 
 export const adminGetAvailableDates = (month: string) =>
   fetchApi<string[]>(`/admin/available-dates?month=${month}`);
+
+// ---- Messages ----
+export const submitMessage = (data: {
+  name: string; email: string; phone: string;
+  phoneVerified: boolean; service?: string; message: string;
+}) =>
+  fetchApi<{ _id: string }>("/messages", { method: "POST", body: JSON.stringify(data) });
+
+export const adminGetMessages = (page = 1, limit = 20) =>
+  fetchApi<ContactMessage[]>(`/admin/messages?page=${page}&limit=${limit}`);
+
+export const adminGetUnreadCount = () =>
+  fetchApi<{ count: number }>("/admin/messages/unread-count");
+
+export const adminMarkMessageRead = (id: string) =>
+  fetchApi<ContactMessage>(`/admin/messages/${id}/read`, { method: "PATCH" });
+
+export const adminDeleteMessage = (id: string) =>
+  fetchApi<{ message: string }>(`/admin/messages/${id}`, { method: "DELETE" });
+
+export interface ContactMessage {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  phoneVerified: boolean;
+  service: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}

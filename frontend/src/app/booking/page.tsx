@@ -409,6 +409,26 @@ function BookingContent() {
               </div>
             )}
 
+            {/* Book for Free option */}
+            <div className="mt-4 border border-dashed border-primary/40 p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-primary/5 hover:bg-primary/10 transition-colors">
+              <div>
+                <h3 className="text-foreground font-medium mb-1 flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-primary text-primary-foreground text-[10px] uppercase font-bold" style={{ letterSpacing: "0.1em" }}>Free</span>
+                  Book for Free — Send a Message
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  Not ready to pay yet? Send us a message with your requirements and we&apos;ll get back to you within one business day.
+                </p>
+              </div>
+              <a
+                href="/#contact"
+                className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 border border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-colors uppercase text-xs font-medium"
+                style={{ letterSpacing: "0.15em" }}
+              >
+                Send Message →
+              </a>
+            </div>
+
             <div className="flex justify-end mt-8">
               <button onClick={() => selectedProgram && setStep(2)} disabled={!selectedProgram}
                 className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground

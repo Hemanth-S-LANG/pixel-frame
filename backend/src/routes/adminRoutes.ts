@@ -1,20 +1,14 @@
 import { Router } from "express";
 import { adminLogin, requireAdmin } from "../middleware/adminAuth.js";
 import {
-  blockDate,
-  unblockDate,
-  blockSlot,
-  unblockSlot,
-  getAdminSlots,
-  getAdminBookings,
-  getAdminStats,
-  getBlockedDates,
-  updateSlot,
-  createSlot,
-  deleteSlot,
-  updateBlockReason,
-  getAdminAvailableDates,
+  blockDate, unblockDate, blockSlot, unblockSlot,
+  getAdminSlots, getAdminBookings, getAdminStats,
+  getBlockedDates, updateSlot, createSlot, deleteSlot,
+  updateBlockReason, getAdminAvailableDates,
 } from "../controllers/adminController.js";
+import {
+  getMessages, getUnreadCount, markMessageRead, deleteMessage,
+} from "../controllers/messageController.js";
 
 const router = Router();
 
@@ -42,5 +36,11 @@ router.get("/bookings", getAdminBookings);
 router.get("/stats", getAdminStats);
 router.get("/blocked-dates", getBlockedDates);
 router.get("/available-dates", getAdminAvailableDates);
+
+// Messages
+router.get("/messages", getMessages);
+router.get("/messages/unread-count", getUnreadCount);
+router.patch("/messages/:id/read", markMessageRead);
+router.delete("/messages/:id", deleteMessage);
 
 export default router;

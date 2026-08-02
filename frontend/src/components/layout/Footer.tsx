@@ -29,11 +29,10 @@ export function Footer() {
               className="text-foreground uppercase text-sm block mb-3 hover:text-primary transition-colors"
               style={{ fontFamily: "var(--font-serif)", letterSpacing: "0.25em" }}
             >
-              Marcus <span className="text-primary">Cole</span>
+              Sapthagiri <span className="text-primary">Studio</span>
             </Link>
             <p className="body-muted text-sm leading-relaxed">
-              Cinematographer, photographer, and studio operator based in Silver
-              Lake, Los Angeles.
+              Photography, cinematography, and fully equipped studio space in Harohalli. Since 1996.
             </p>
           </div>
 
@@ -76,19 +75,19 @@ export function Footer() {
             </p>
             <div className="flex flex-col gap-2 mb-6">
               <a
-                href="mailto:hello@colestudio.com"
+                href="mailto:sapthagiristudio@gmail.com"
                 className="text-muted-foreground hover:text-primary transition-colors duration-200 text-sm"
               >
-                hello@colestudio.com
+                sapthagiristudio@gmail.com
               </a>
               <a
-                href="tel:+13235550174"
+                href="tel:+919035661669"
                 className="text-muted-foreground hover:text-primary transition-colors duration-200 text-sm"
               >
-                +1 (323) 555-0174
+                9035661669
               </a>
               <span className="text-muted-foreground text-sm">
-                Silver Lake, Los Angeles
+                Harohalli - 562112
               </span>
             </div>
             <div className="flex gap-4">
@@ -114,10 +113,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-muted-foreground text-xs">
-            © {new Date().getFullYear()} Cole Studio. All rights reserved.
-          </p>
-          <p className="text-muted-foreground text-xs">
-            Built in Los Angeles
+            © {new Date().getFullYear()} Sapthagiri Studio. All rights reserved.
           </p>
         </div>
       </div>

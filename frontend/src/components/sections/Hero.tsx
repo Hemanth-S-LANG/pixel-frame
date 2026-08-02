@@ -74,7 +74,7 @@ export function Hero() {
         >
           <div className="gold-line" />
           <span className="section-label">
-            Cinematographer &amp; Studio — Los Angeles
+            Sapthagiri Studio — Harohalli, Since 1996
           </span>
         </motion.div>
 

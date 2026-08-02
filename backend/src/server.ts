@@ -11,6 +11,7 @@ import programRoutes from "./routes/programRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
 import errorHandler from "./middleware/errorHandler.js";
 import Program from "./models/Program.js";
 import TimeSlot from "./models/TimeSlot.js";
@@ -78,7 +79,8 @@ function startServer() {
   app.use("/api/programs", programRoutes);
   app.use("/api/bookings", bookingRoutes);
   app.use("/api/payments", paymentRoutes);
-  app.use("/api/admin", adminRoutes);
+  app.use("/api/admin",    adminRoutes);
+  app.use("/api/messages", messageRoutes);
 
   // Health check — shows worker info
   app.get("/api/health", (_req, res) => {

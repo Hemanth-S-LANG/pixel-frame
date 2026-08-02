@@ -15,7 +15,8 @@ import {
   adminBlockSlot, adminUnblockSlot, adminGetBookings,
   getBlockedDatesForMonth, adminUpdateSlot, getPrograms,
   adminCreateSlot, adminDeleteSlot, adminGetAvailableDates,
-  type AdminSlot, type AdminStats, type Booking, type Program,
+  adminGetMessages, adminGetUnreadCount, adminMarkMessageRead, adminDeleteMessage,
+  type AdminSlot, type AdminStats, type Booking, type Program, type ContactMessage,
 } from "@/lib/api";
 
 export default function AdminPage() {
@@ -77,7 +78,15 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState("");
   const [toast, setToast] = useState("");
-  const [activeTab, setActiveTab] = useState<"calendar" | "bookings">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "bookings" | "messages">("calendar");
+
+  // Messages state
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [messagesPage, setMessagesPage] = useState(1);
+  const [messagesTotalPages, setMessagesTotalPages] = useState(1);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
 
   // Show toast message
   const showToast = (msg: string) => {
@@ -110,6 +119,10 @@ export default function AdminPage() {
           }
         })
         .catch(() => setAllPrograms([]));
+      // Fetch unread message count for badge
+      adminGetUnreadCount()
+        .then((res) => setUnreadCount(res.data.count))
+        .catch(() => {});
     }
   }, [isLoggedIn]);
 
@@ -176,6 +189,30 @@ export default function AdminPage() {
     }
   }, [activeTab, fetchBookings]);
 
+  // Fetch messages
+  const fetchMessages = useCallback(async () => {
+    if (!isLoggedIn) return;
+    setMessagesLoading(true);
+    try {
+      const res = await adminGetMessages(messagesPage, 20);
+      setMessages(res.data);
+      if (res.pagination) {
+        setMessagesTotalPages(res.pagination.totalPages || 1);
+      }
+      // Refresh unread count
+      adminGetUnreadCount().then((r) => setUnreadCount(r.data.count)).catch(() => {});
+    } catch (err) {
+      console.error("Error fetching messages:", err);
+    }
+    setMessagesLoading(false);
+  }, [isLoggedIn, messagesPage]);
+
+  useEffect(() => {
+    if (activeTab === "messages") {
+      fetchMessages();
+    }
+  }, [activeTab, fetchMessages]);
+
   // Handle Login
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,7 +227,7 @@ export default function AdminPage() {
       setUsernameInput("");
       setPasswordInput("");
       setIsLoggedIn(true);
-      showToast("Welcome back, Marcus!");
+      showToast("Welcome back, Murali!");
     } catch (err: any) {
       setLoginError(err.message || "Invalid credentials. Please try again.");
     } finally {
@@ -472,7 +509,7 @@ export default function AdminPage() {
         <div className="w-full max-w-md border border-border bg-card/40 backdrop-blur-md p-8 md:p-10 shadow-2xl relative z-10">
           <div className="text-center mb-8">
             <h2 className="text-foreground uppercase text-base mb-1" style={{ fontFamily: "var(--font-serif)", letterSpacing: "0.3em" }}>
-              Marcus <span className="text-primary font-bold">Cole</span>
+              Sapthagiri <span className="text-primary font-bold">Studio</span>
             </h2>
             <div className="w-12 h-[1px] bg-primary mx-auto my-3" />
             <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Admin Portal Gate</p>
@@ -547,7 +584,7 @@ export default function AdminPage() {
   // ---- Main Admin Dashboard View ----
   return (
     <main className="min-h-screen bg-background">
-      <AdminNav activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
+      <AdminNav activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} unreadMessages={unreadCount} />
       
       <div className="pt-28 md:pt-32 pb-16 max-w-7xl mx-auto px-6 md:px-8">
         {/* Header */}
