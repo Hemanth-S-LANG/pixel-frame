@@ -8,7 +8,7 @@ import {
   Calendar as CalendarIcon, Clock, Users, DollarSign, Ban, Check,
   ChevronLeft, ChevronRight, Lock, Unlock, Loader2, AlertTriangle,
   User, Mail, Phone, FileText, X, Search, ChevronDown, CheckCircle,
-  Eye, EyeOff, Pencil, Plus, Trash2
+  Eye, EyeOff, Pencil, Plus, Trash2, MessageSquare
 } from "lucide-react";
 import {
   adminLogin, adminGetStats, adminGetSlots, adminBlockDate, adminUnblockDate,
@@ -593,7 +593,7 @@ export default function AdminPage() {
           <span className="section-label">Studio Controls</span>
         </div>
         <h1 className="heading-display mb-8" style={{ fontSize: "clamp(1.75rem, 3vw, 2.25rem)" }}>
-          {activeTab === "calendar" ? "Availability Calendar" : "Studio Booking Records"}
+          {activeTab === "calendar" ? "Availability Calendar" : activeTab === "bookings" ? "Studio Booking Records" : "Customer Messages"}
         </h1>
 
         {/* Toast Notification */}
@@ -1297,7 +1297,178 @@ export default function AdminPage() {
             )}
           </div>
         )}
+
+        {/* ===== MESSAGES TAB ===== */}
+        {activeTab === "messages" && (
+          <div className="border border-border p-6 bg-card/5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-border pb-6">
+              <div>
+                <h3 className="text-foreground font-semibold">Customer Messages</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Messages sent via the contact form — {unreadCount} unread
+                </p>
+              </div>
+            </div>
+
+            {messagesLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="animate-spin text-primary" size={32} />
+              </div>
+            ) : messages.length > 0 ? (
+              <div className="space-y-3">
+                {messages.map((msg) => (
+                  <div
+                    key={msg._id}
+                    onClick={async () => {
+                      setSelectedMessage(msg);
+                      if (!msg.isRead) {
+                        try {
+                          await adminMarkMessageRead(msg._id);
+                          setMessages((prev) => prev.map((m) => m._id === msg._id ? { ...m, isRead: true } : m));
+                          setUnreadCount((c) => Math.max(0, c - 1));
+                        } catch { /* ignore */ }
+                      }
+                    }}
+                    className={`flex items-start justify-between p-4 border cursor-pointer transition-all duration-200 gap-4
+                      ${!msg.isRead ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/20 hover:bg-card/20"}`}
+                  >
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${!msg.isRead ? "bg-primary" : "bg-transparent"}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap mb-1">
+                          <span className="text-foreground font-semibold text-sm">{msg.name}</span>
+                          {msg.service && (
+                            <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] uppercase font-medium" style={{ letterSpacing: "0.05em" }}>
+                              {msg.service}
+                            </span>
+                          )}
+                          {msg.phoneVerified && (
+                            <span className="px-2 py-0.5 bg-green-500/10 text-green-500 text-[10px] uppercase font-medium">
+                              ✓ Verified
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground text-xs mb-1">{msg.email} · {msg.phone}</p>
+                        <p className="text-muted-foreground text-sm truncate">{msg.message}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-muted-foreground text-xs whitespace-nowrap">
+                        {new Date(msg.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm("Delete this message?")) {
+                            adminDeleteMessage(msg._id)
+                              .then(() => {
+                                setMessages((prev) => prev.filter((m) => m._id !== msg._id));
+                                if (!msg.isRead) setUnreadCount((c) => Math.max(0, c - 1));
+                                showToast("Message deleted");
+                              })
+                              .catch(() => showToast("Failed to delete"));
+                          }
+                        }}
+                        className="p-1.5 border border-border text-destructive/70 hover:text-destructive hover:border-destructive/30 transition-colors"
+                        title="Delete message"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Pagination */}
+                {messagesTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-6">
+                    <button onClick={() => setMessagesPage((p) => Math.max(1, p - 1))} disabled={messagesPage === 1}
+                      className="p-2 border border-border hover:border-primary/50 disabled:opacity-30 transition-colors">
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span className="text-muted-foreground text-xs px-3">Page {messagesPage} of {messagesTotalPages}</span>
+                    <button onClick={() => setMessagesPage((p) => Math.min(messagesTotalPages, p + 1))} disabled={messagesPage === messagesTotalPages}
+                      className="p-2 border border-border hover:border-primary/50 disabled:opacity-30 transition-colors">
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-20 border border-border border-dashed text-muted-foreground text-sm">
+                No messages yet. Messages sent via the contact form will appear here.
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Message Detail Modal */}
+      <AnimatePresence>
+        {selectedMessage && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.6 }} exit={{ opacity: 0 }}
+              onClick={() => setSelectedMessage(null)} className="absolute inset-0 bg-black" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="w-full max-w-lg border border-border bg-card/95 backdrop-blur-xl p-7 shadow-2xl relative z-10 overflow-y-auto max-h-[90vh]">
+              <button onClick={() => setSelectedMessage(null)}
+                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors p-1">
+                <X size={16} />
+              </button>
+              <div className="mb-5 pb-4 border-b border-border">
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="text-foreground font-bold text-base">{selectedMessage.name}</span>
+                  {selectedMessage.phoneVerified && (
+                    <span className="px-2 py-0.5 bg-green-500/10 text-green-500 text-[10px] uppercase font-medium">✓ Phone Verified</span>
+                  )}
+                  {selectedMessage.service && (
+                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] uppercase font-medium">{selectedMessage.service}</span>
+                  )}
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  {new Date(selectedMessage.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                </p>
+              </div>
+              <div className="space-y-3 text-sm mb-6">
+                {[
+                  { icon: Mail,  label: "Email", value: selectedMessage.email },
+                  { icon: Phone, label: "Phone", value: selectedMessage.phone },
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <Icon size={13} className="text-muted-foreground flex-shrink-0" />
+                    <span className="text-muted-foreground text-xs uppercase font-semibold w-12">{label}</span>
+                    <span className="text-foreground">{value}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-background border border-border p-4 text-sm text-foreground leading-relaxed whitespace-pre-wrap mb-6">
+                {selectedMessage.message}
+              </div>
+              <div className="flex justify-between gap-3">
+                <button onClick={() => {
+                  if (confirm("Delete this message?")) {
+                    adminDeleteMessage(selectedMessage._id)
+                      .then(() => {
+                        setMessages((prev) => prev.filter((m) => m._id !== selectedMessage._id));
+                        if (!selectedMessage.isRead) setUnreadCount((c) => Math.max(0, c - 1));
+                        setSelectedMessage(null);
+                        showToast("Message deleted");
+                      })
+                      .catch(() => showToast("Failed to delete"));
+                  }
+                }}
+                  className="flex items-center gap-2 px-4 py-2 border border-destructive/30 text-destructive hover:bg-destructive hover:text-white text-xs uppercase transition-colors">
+                  <Trash2 size={12} /> Delete
+                </button>
+                <a href={`mailto:${selectedMessage.email}`}
+                  className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground hover:bg-primary-hover text-xs uppercase font-semibold transition-colors">
+                  <Mail size={12} /> Reply by Email
+                </a>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Block Reason Modal */}
       <AnimatePresence>

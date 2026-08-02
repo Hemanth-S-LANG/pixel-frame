@@ -100,9 +100,7 @@ export function Hero() {
           transition={{ delay: 0.7, duration: 0.6 }}
           className="body-muted max-w-sm mb-10"
         >
-          Award-winning cinematography, commercial photography, and fully
-          equipped studio space. We craft visual stories that move, persuade,
-          and endure.
+          "Every Frame Tells a Story. Every Moment Becomes a Memory."
         </motion.p>
 
         <motion.div

@@ -126,6 +126,23 @@ export function Contact() {
                 );
               })}
             </div>
+
+            {/* Business Hours */}
+            <div className="mt-8 pt-8 border-t border-border">
+              <div className="section-label mb-3" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>
+                Business Hours
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Mon – Sat</span>
+                  <span className="text-foreground font-medium">9:00 AM – 8:00 PM</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Sunday</span>
+                  <span className="text-primary text-xs font-medium uppercase" style={{ letterSpacing: "0.1em" }}>By Appointment</span>
+                </div>
+              </div>
+            </div>
           </motion.div>
 
           {/* Right Column — Form */}

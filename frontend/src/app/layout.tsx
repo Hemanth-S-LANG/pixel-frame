@@ -16,22 +16,23 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Cole Studio — Cinematography, Photography & Studio Rental",
+  title: "Sapthagiri Studio — Photography, Cinematography & Studio Rental",
   description:
-    "Award-winning cinematography, commercial photography, and fully equipped studio space in Los Angeles. Book your session today.",
+    "Professional photography, cinematic videography, and fully equipped studio space in Harohalli since 1996. Book your session today.",
   keywords: [
+    "Sapthagiri Studio",
+    "photography Harohalli",
     "cinematography",
-    "photography",
     "studio rental",
-    "Los Angeles",
-    "film production",
+    "wedding photography",
+    "Murali photographer",
+    "Harohalli studio",
     "video production",
-    "Cole Studio",
   ],
   openGraph: {
-    title: "Cole Studio — Frame The Moment",
+    title: "Sapthagiri Studio — Capture Every Emotion, Forever",
     description:
-      "Award-winning cinematography, commercial photography, and studio rental in Silver Lake, Los Angeles.",
+      "Professional photography, cinematic videography, and studio rental in Harohalli since 1996.",
     type: "website",
   },
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Download, Camera } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,9 +14,13 @@ const links = [
   { label: "Contact", href: "#contact" },
 ];
 
+// Brochure filename must match the actual file in /public
+const BROCHURE_PATH = "/Sapthagiri-Studio-Brochure.pdf";
+
 export function Nav() {
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled]     = useState(false);
+  const [menuOpen, setMenuOpen]     = useState(false);
+  const [logoError, setLogoError]   = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -24,13 +28,8 @@ export function Nav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Lock body scroll when mobile menu is open
   useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = menuOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [menuOpen]);
 
@@ -40,18 +39,35 @@ export function Nav() {
         scrolled ? "nav-glass border-b border-border" : "bg-transparent"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-5 flex items-center justify-between">
-        {/* Logo */}
-        <Link
-          href="/"
-          className="text-foreground uppercase text-sm hover:text-primary transition-colors duration-300"
-          style={{ fontFamily: "var(--font-serif)", letterSpacing: "0.25em" }}
-        >
-          Sapthagiri <span className="text-primary">Studio</span>
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-3 flex items-center justify-between">
+
+        {/* Logo — shows actual image if sapthagiri-logo.png is in /public, else styled icon */}
+        <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
+          {!logoError ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/sapthagiri-logo.png"
+              alt="Sapthagiri Studio"
+              className="flex-shrink-0 object-contain"
+              style={{ width: "36px", height: "36px", borderRadius: "50%" }}
+              onError={() => setLogoError(true)}
+            />
+          ) : (
+            /* Fallback icon — visible until real logo PNG is placed in /public */
+            <div className="w-9 h-9 rounded-full border border-primary bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Camera size={16} className="text-primary" />
+            </div>
+          )}
+          <span
+            className="text-foreground uppercase text-sm hover:text-primary transition-colors duration-300 leading-tight"
+            style={{ fontFamily: "var(--font-serif)", letterSpacing: "0.2em" }}
+          >
+            Sapthagiri <span className="text-primary">Studio</span>
+          </span>
         </Link>
 
         {/* Desktop Nav */}
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden md:flex items-center gap-6">
           {links.map((link, i) => (
             <motion.a
               key={link.label}
@@ -71,6 +87,21 @@ export function Nav() {
           ))}
 
           <ThemeToggle />
+
+          {/* Download Brochure */}
+          <a
+            href={BROCHURE_PATH}
+            download="Sapthagiri-Studio-Brochure.pdf"
+            className={`flex items-center gap-1.5 px-4 py-2 border transition-all duration-300 uppercase text-[11px] ${
+              scrolled
+                ? "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                : "border-foreground/30 text-foreground/80 hover:border-primary hover:text-primary"
+            }`}
+            style={{ fontFamily: "var(--font-sans)", letterSpacing: "0.15em" }}
+          >
+            <Download size={11} />
+            Brochure
+          </a>
 
           <Link
             href="/booking"
@@ -123,6 +154,15 @@ export function Nav() {
                   {link.label}
                 </motion.a>
               ))}
+              <a
+                href={BROCHURE_PATH}
+                download="Sapthagiri-Studio-Brochure.pdf"
+                onClick={() => setMenuOpen(false)}
+                className="self-start flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors uppercase text-xs"
+                style={{ fontFamily: "var(--font-sans)", letterSpacing: "0.15em" }}
+              >
+                <Download size={12} /> Download Brochure
+              </a>
               <Link
                 href="/booking"
                 onClick={() => setMenuOpen(false)}

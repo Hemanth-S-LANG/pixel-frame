@@ -11,12 +11,12 @@ const stats = [
 ];
 
 const credits = [
-  "A24 — Short Film Program",
-  "Nike Global Campaign 2023",
-  "Netflix Original Content",
-  "Vogue Italia — Editorial",
-  "Warner Music Group",
-  "Sundance Selection 2022",
+  "Wedding Photography",
+  "Commercial Shoots",
+  "Portrait Sessions",
+  "Event Coverage",
+  "Product Photography",
+  "Studio Rentals",
 ];
 
 function StatCounter({ target }: { target: string }) {
@@ -65,7 +65,7 @@ export function About() {
             <div className="absolute -top-4 -left-4 w-24 h-24 border border-primary opacity-30 z-0" />
             <img
               src="https://images.unsplash.com/photo-1587050265310-1a2d98ccce5f?w=720&h=900&fit=crop&auto=format"
-              alt="Marcus Cole, cinematographer, on set holding camera"
+              alt="Murali, photographer and studio owner at Sapthagiri Studio"
               className="relative z-10 w-full object-cover"
               style={{ maxHeight: "600px" }}
               loading="lazy"
@@ -90,29 +90,36 @@ export function About() {
           >
             <div className="flex items-center gap-3 mb-6">
               <div className="gold-line" />
-              <span className="section-label">The Filmmaker</span>
+              <span className="section-label">The Studio Owner</span>
             </div>
 
             <h2
               className="heading-display mb-6"
               style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}
             >
-              Marcus Cole,<br />
-              <em className="text-muted-foreground">DP &amp; Photographer</em>
+              Murali,<br />
+              <em className="text-muted-foreground">Photographer &amp; Studio Owner</em>
             </h2>
 
             <p className="body-muted mb-5">
-              I began shooting on 16mm film in 2012, cutting my teeth on
-              documentary work across Southeast Asia and East Africa. That
-              foundation in observational filmmaking taught me something that no
-              lighting rig can replicate — how to read a moment before it
-              happens.
+             We transform life's unforgettable moments into timeless memories. With years of experience in photography, cinematic videography, aerial filming, and creative editing, we deliver premium-quality visual storytelling for every occasion.
+            </p>
+            <h3>Our Creative Philosophy</h3>
+            <p className="body-muted mb-5">
+              Every frame we capture is imbued with emotion, light, and artistry. We combine state-of-the-art camera equipment with sophisticated post-production techniques to create masterpieces that last generations.
+            </p>
+            <h3>Core Expertise</h3>
+            <p className="body-muted mb-5">
+              High-End Lens & Optics Mastery
+              Studio & Location Lighting Rigs
+              Aerial Drone Cinematography
+              4K Color-Graded Post Production
             </p>
             <p className="body-muted mb-10">
-              Today, Cole Studio operates from a permanent location in Silver
-              Lake, Los Angeles. We partner with directors, agencies, and brands
-              who understand that the visual decisions made in pre-production
-              determine everything downstream.
+              Today, Sapthagiri Studio operates from a permanent location in
+              Harohalli — 562112. We partner with families, brands, and creative
+              teams who understand that powerful imagery is built long before the
+              shutter clicks.
             </p>
 
             {/* Stats Grid */}
@@ -135,7 +142,7 @@ export function About() {
             {/* Credits */}
             <div>
               <p className="section-label mb-4" style={{ fontSize: "0.6rem" }}>
-                Selected Credits
+                Services Offered
               </p>
               <div className="grid grid-cols-2 gap-y-3">
                 {credits.map((credit) => (

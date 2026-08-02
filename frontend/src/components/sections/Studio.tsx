@@ -5,18 +5,15 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 
 const features = [
-  "2,400 sq ft cyclorama wall",
-  "12-foot infinity white cove",
-  "Arri SkyPanel S60-C (×8)",
-  "Dedolight DLED9 kit",
-  "Power: 100A three-phase",
-  "Grip truck on-site",
-  "Hair & makeup station",
-  "Private client lounge",
-  "High-speed internet (1 Gbps)",
-  "Loading dock access",
-  "On-site parking (12 spaces)",
-  "24 / 7 key access",
+  "Cinema Cameras",
+  "4K Mirrorless",
+  "Drone Systems",
+  "Gimbals & Stabilization",
+  "Studio Lighting",
+  "Wireless Audio",
+  "360° Cameras",
+  "Action Cams",
+  ,
 ];
 
 const rates = [
@@ -46,14 +43,25 @@ export function Studio() {
               className="heading-display mb-6"
               style={{ fontSize: "clamp(2rem, 4vw, 3.25rem)" }}
             >
-              Cole Studio —<br />Silver Lake, LA.
+              Sapthagiri Studio —<br />Harohalli, Since 1996.
             </h2>
             <p className="body-muted mb-8">
-              Built for working filmmakers and photographers. The space is
-              designed around the reality of long production days — proper power,
-              professional grip, and enough room to swing a boom pole without
-              hitting a wall. Available for rent with or without crew.
+              Built for photographers, cinematographers, and creative teams.
+              Our studio is designed around the reality of long production days —
+              professional lighting rigs, proper power, and enough space to bring
+              any vision to life. Available for rent with or without crew.
             </p>
+
+            {/* Studio Logo — fills the left column space */}
+            <div className="flex justify-center mb-10">
+              <img
+                src="/sapthagiri-logo.png"
+                alt="Sapthagiri Studio Logo"
+                className="w-64 h-64 object-contain"
+                loading="lazy"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-y-3 mb-10">
               {features.map((f, i) => (
                 <motion.div
@@ -79,20 +87,11 @@ export function Studio() {
             className="relative"
           >
             <img
-              src="https://images.unsplash.com/photo-1681137063068-081072cf04b4?w=900&h=700&fit=crop&auto=format"
-              alt="Cole Studio interior with professional lighting setup"
-              className="w-full object-cover"
-              style={{ height: "480px" }}
+              src="/photography and videography.png"
+              alt="Sapthagiri Studio — Professional Photography & Videography"
+              className="w-full h-auto block"
               loading="lazy"
             />
-            <div className="absolute top-4 right-4">
-              <img
-                src="https://images.unsplash.com/photo-1542992933-ce75d0187ec1?w=300&h=300&fit=crop&auto=format"
-                alt="Studio photography in progress"
-                className="w-36 h-36 object-cover border-2 border-background"
-                loading="lazy"
-              />
-            </div>
           </motion.div>
         </div>
 

@@ -90,7 +90,7 @@ export function Footer() {
                 Harohalli - 562112
               </span>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 mb-6">
               {socialLinks.map((s) => {
                 const Icon = s.icon;
                 return (
@@ -106,6 +106,22 @@ export function Footer() {
                   </a>
                 );
               })}
+            </div>
+            {/* Business Hours */}
+            <div className="pt-4 border-t border-border">
+              <p className="section-label mb-2" style={{ fontSize: "0.55rem", letterSpacing: "0.15em" }}>
+                Business Hours
+              </p>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Mon – Sat</span>
+                  <span className="text-foreground">9:00 AM – 8:00 PM</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Sunday</span>
+                  <span className="text-primary" style={{ letterSpacing: "0.05em" }}>By Appointment</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
