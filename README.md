@@ -1,5 +1,5 @@
 
-# Cameraman Studio Website
+# Website
 
 Full-stack studio booking platform with Next.js frontend and Express/MongoDB backend.
 
