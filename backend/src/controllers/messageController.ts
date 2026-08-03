@@ -74,32 +74,42 @@ export const deleteMessage = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// POST /api/messages/send-otp — Send OTP to phone via MSG91 (public)
-// MSG91 API key must be set in .env as MSG91_API_KEY and MSG91_TEMPLATE_ID
+// POST /api/messages/send-otp — Send OTP via MSG91 Widget REST API (no captcha, no DLT)
 export const sendOtp = async (req: Request, res: Response): Promise<void> => {
   try {
     const { phone } = req.body;
-    if (!phone) { res.status(400).json({ success: false, message: "phone is required" }); return; }
-
-    const apiKey     = process.env.MSG91_API_KEY;
-    const templateId = process.env.MSG91_TEMPLATE_ID;
-
-    if (!apiKey || !templateId) {
-      // MSG91 not configured yet — return a dev-mode bypass so the form still works
-      console.warn("MSG91_API_KEY or MSG91_TEMPLATE_ID not set — OTP skipped in dev mode");
-      res.json({ success: true, message: "OTP sent (dev mode — configure MSG91 in .env)" });
+    if (!phone) {
+      res.status(400).json({ success: false, message: "phone is required" });
       return;
     }
 
-    const response = await fetch("https://control.msg91.com/api/v5/otp", {
+    const apiKey  = process.env.MSG91_API_KEY;
+    const widgetId = process.env.MSG91_WIDGET_ID;
+
+    if (!apiKey || !widgetId) {
+      console.warn("MSG91 keys not set — dev mode bypass");
+      res.json({ success: true, devMode: true, reqId: "dev-req-id" });
+      return;
+    }
+
+    // MSG91 Widget Send OTP API — no DLT, no template needed
+    const response = await fetch("https://api.msg91.com/api/v5/widget/sendOtp", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "authkey": apiKey },
-      body: JSON.stringify({ template_id: templateId, mobile: `91${phone}`, otp_expiry: 5 }),
+      headers: {
+        "authkey": apiKey,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        widgetId,
+        identifier: `91${phone}`,
+      }),
     });
 
     const data = await response.json();
-    if (data.type === "success") {
-      res.json({ success: true, message: "OTP sent" });
+    console.log("MSG91 sendOtp response:", data);
+
+    if (data.type === "success" || data.reqId) {
+      res.json({ success: true, reqId: data.reqId || data.data?.reqId });
     } else {
       res.status(400).json({ success: false, message: data.message || "Failed to send OTP" });
     }
@@ -109,31 +119,58 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// POST /api/messages/verify-otp — Verify OTP (public)
+// POST /api/messages/verify-otp — Verify OTP via MSG91 Widget REST API
 export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { phone, otp } = req.body;
-    if (!phone || !otp) { res.status(400).json({ success: false, message: "phone and otp are required" }); return; }
+    const { reqId, otp, token } = req.body;
 
-    const apiKey = process.env.MSG91_API_KEY;
+    const apiKey  = process.env.MSG91_API_KEY;
+    const widgetId = process.env.MSG91_WIDGET_ID;
 
-    if (!apiKey) {
-      // Dev mode bypass — accept any 4-digit OTP
-      const valid = /^\d{4,6}$/.test(otp);
+    if (!apiKey || !widgetId) {
+      // Dev mode — accept any 4-6 digit OTP
+      const valid = /^\d{4,6}$/.test(otp || "");
       res.json({ success: valid, verified: valid, message: valid ? "Verified (dev mode)" : "Invalid OTP" });
       return;
     }
 
-    const response = await fetch(`https://control.msg91.com/api/v5/otp/verify?mobile=91${phone}&otp=${otp}`, {
-      method: "GET",
-      headers: { "authkey": apiKey },
+    // If we received a widget token (from browser widget fallback), verify it
+    if (token && !reqId) {
+      const verifyRes = await fetch(
+        `https://api.msg91.com/api/v5/widget/verifyAccessToken?access-token=${token}`,
+        { method: "GET", headers: { "authkey": apiKey } }
+      );
+      const data = await verifyRes.json();
+      if (data.type === "success") {
+        res.json({ success: true, verified: true });
+      } else {
+        res.status(400).json({ success: false, verified: false, message: "Token verification failed" });
+      }
+      return;
+    }
+
+    // Standard flow: verify OTP using reqId
+    if (!reqId || !otp) {
+      res.status(400).json({ success: false, message: "reqId and otp are required" });
+      return;
+    }
+
+    const response = await fetch("https://api.msg91.com/api/v5/widget/verifyOtp", {
+      method: "POST",
+      headers: {
+        "authkey": apiKey,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ widgetId, reqId, otp }),
     });
 
     const data = await response.json();
-    if (data.type === "success") {
-      res.json({ success: true, verified: true, message: "Phone verified" });
+    console.log("MSG91 verifyOtp response:", data);
+
+    if (data.type === "success" || data.message === "OTP verified successfully") {
+      res.json({ success: true, verified: true });
     } else {
-      res.status(400).json({ success: false, verified: false, message: "Invalid or expired OTP" });
+      res.status(400).json({ success: false, verified: false, message: data.message || "Invalid OTP" });
     }
   } catch (error) {
     console.error("Error verifying OTP:", error);

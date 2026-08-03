@@ -1,78 +1,152 @@
 "use client";
 
-import { useState } from "react";
-import { Mail, MapPin, Phone, Send, CheckCircle, Loader2, ShieldCheck } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Mail, MapPin, Phone, Send, CheckCircle, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const serviceOptions = [
-  "Film & Cinematography",
-  "Commercial Photography",
-  "Studio Rental",
-  "Post-Production",
-  "Photoshoot",
+  "Photography Services",
+  "Videography Services",
+  "Premium Services",
+  "Video Editing",
   "Other",
 ];
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API          = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const WIDGET_ID    = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID  || "3668626e6164363530363934";
+const AUTH_TOKEN   = process.env.NEXT_PUBLIC_MSG91_AUTH_TOKEN || "556661To8EbYr9qBd16a6f53a2P1";
 
-type OtpState = "idle" | "sending" | "sent" | "verifying" | "verified";
+declare global {
+  interface Window {
+    initSendOTP?: (cfg: {
+      widgetId: string;
+      tokenAuth: string;
+      identifier: string;
+      success?: (data: { message: string }) => void;
+      failure?: (err: unknown) => void;
+    }) => void;
+  }
+}
+
+type OtpState = "idle" | "loading" | "verified";
 
 export function Contact() {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", service: "", message: "" });
-  const [otpState, setOtpState]   = useState<OtpState>("idle");
-  const [otpInput, setOtpInput]   = useState("");
-  const [otpError, setOtpError]   = useState("");
-  const [sent, setSent]           = useState(false);
-  const [sending, setSending]     = useState(false);
+  const [form, setForm]   = useState({ name: "", email: "", phone: "", service: "", message: "" });
+  const [otpState, setOtpState] = useState<OtpState>("idle");
+  const [otpError, setOtpError] = useState("");
+  const [sent, setSent]   = useState(false);
+  const [sending, setSending] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const scriptLoaded = useRef(false);
 
   const inputClass =
     "w-full bg-input border border-border text-foreground px-4 py-3 focus:outline-none focus:border-primary transition-colors duration-200 placeholder-muted-foreground text-sm";
 
-  // ---- OTP: Send ----
-  const handleSendOtp = async () => {
-    if (!/^[6-9]\d{9}$/.test(form.phone)) {
+  // Load MSG91 widget script once
+  useEffect(() => {
+    if (scriptLoaded.current || typeof window === "undefined") return;
+    scriptLoaded.current = true;
+    if (document.querySelector('script[src*="otp-provider"]')) return;
+    const s = document.createElement("script");
+    s.src   = "https://control.msg91.com/app/assets/otp-provider/otp-provider.js";
+    s.async = true;
+    document.head.appendChild(s);
+  }, []);
+
+  const handleVerify = () => {
+    const phone = form.phone.trim();
+    if (!/^[6-9]\d{9}$/.test(phone)) {
       setOtpError("Enter a valid 10-digit Indian mobile number");
       return;
     }
-    setOtpError(""); setOtpState("sending");
-    try {
-      const res = await fetch(`${API}/messages/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: form.phone }),
+
+    // Retry — let user change number
+    if (otpState === "loading") return;
+
+    setOtpError("");
+    setOtpState("loading");
+
+    const tryWidget = () => {
+      if (!window.initSendOTP) {
+        // Script not ready yet — retry after 500ms
+        setTimeout(tryWidget, 500);
+        return;
+      }
+      window.initSendOTP({
+        widgetId:   WIDGET_ID,
+        tokenAuth:  AUTH_TOKEN,
+        identifier: `91${phone}`,
+        success: (_data) => {
+          // MSG91 widget called success — OTP verified by MSG91 itself.
+          // We trust this callback and mark phone as verified.
+          setOtpState("verified");
+          setOtpError("");
+        },
+        failure: (err) => {
+          console.error("MSG91 OTP failure:", err);
+          // If captcha failed (localhost issue), fall back to a 4-digit dev bypass
+          if (window.location.hostname === "localhost") {
+            // On localhost, captcha always fails. Show manual OTP entry instead.
+            setOtpError("Running on localhost — captcha blocked. OTP was sent. Enter it below to verify.");
+            setOtpState("idle");
+            // Trigger dev bypass form
+            setDevMode(true);
+          } else {
+            setOtpError("OTP verification failed. Please try again.");
+            setOtpState("idle");
+          }
+        },
       });
-      const data = await res.json();
-      if (data.success) { setOtpState("sent"); }
-      else { setOtpError(data.message || "Failed to send OTP"); setOtpState("idle"); }
-    } catch { setOtpError("Network error. Try again."); setOtpState("idle"); }
+    };
+
+    tryWidget();
   };
 
-  // ---- OTP: Verify ----
-  const handleVerifyOtp = async () => {
-    if (!otpInput) { setOtpError("Enter the OTP"); return; }
-    setOtpError(""); setOtpState("verifying");
+  // Dev-mode manual OTP state (for localhost testing)
+  const [devMode, setDevMode] = useState(false);
+  const [devOtp, setDevOtp]   = useState("");
+  const [reqId, setReqId]     = useState("");
+
+  const handleDevSendOtp = async () => {
+    const phone = form.phone.trim();
+    if (!/^[6-9]\d{9}$/.test(phone)) { setOtpError("Enter a valid 10-digit Indian mobile number"); return; }
+    setOtpError("");
     try {
-      const res = await fetch(`${API}/messages/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: form.phone, otp: otpInput }),
+      const res  = await fetch(`${API}/messages/send-otp`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
       });
       const data = await res.json();
-      if (data.verified) { setOtpState("verified"); }
-      else { setOtpError("Incorrect OTP. Please try again."); setOtpState("sent"); }
-    } catch { setOtpError("Network error. Try again."); setOtpState("sent"); }
+      if (data.success) {
+        setReqId(data.reqId || "");
+        setOtpError("OTP sent! Enter it below.");
+      } else {
+        setOtpError(data.message || "Failed to send OTP");
+      }
+    } catch { setOtpError("Network error. Please try again."); }
   };
 
-  // ---- Submit form ----
+  const handleDevVerify = async () => {
+    if (!devOtp) { setOtpError("Enter the OTP"); return; }
+    setOtpError("");
+    try {
+      const res  = await fetch(`${API}/messages/verify-otp`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reqId, otp: devOtp }),
+      });
+      const data = await res.json();
+      if (data.verified) { setOtpState("verified"); setDevMode(false); }
+      else { setOtpError(data.message || "Incorrect OTP. Try again."); }
+    } catch { setOtpError("Network error."); }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otpState !== "verified") { setOtpError("Please verify your phone number first"); return; }
     setSending(true); setSubmitError("");
     try {
-      const res = await fetch(`${API}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res  = await fetch(`${API}/messages`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, phoneVerified: true }),
       });
       const data = await res.json();
@@ -86,58 +160,45 @@ export function Contact() {
     <section id="contact" className="bg-background py-28">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-16">
+
           {/* Left Column */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }} transition={{ duration: 0.6 }}
-            className="lg:col-span-2"
-          >
+          <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.6 }} className="lg:col-span-2">
             <div className="flex items-center gap-3 mb-4">
-              <div className="gold-line" />
-              <span className="section-label">Get in Touch</span>
+              <div className="gold-line" /><span className="section-label">Get in Touch</span>
             </div>
             <h2 className="heading-display mb-6" style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}>
               Let&apos;s Build<br />Something.
             </h2>
             <p className="body-muted mb-12">
-              Tell us about your project and timeline. We typically respond
-              within one business day. For urgent inquiries, call directly.
+              Tell us about your project and timeline. We typically respond within one business day.
+              For urgent inquiries, call directly.
             </p>
-
             <div className="space-y-6">
               {[
-                { icon: Mail,  label: "Email",  value: "sapthagiristudio@gmail.com" },
-                { icon: Phone, label: "Phone",  value: "9035661669" },
-                { icon: MapPin,label: "Studio", value: "Harohalli - 562112" },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.label} className="flex items-start gap-4">
-                    <div className="w-9 h-9 border border-border flex items-center justify-center flex-shrink-0 mt-0.5 rounded-sm">
-                      <Icon size={14} className="text-primary" />
-                    </div>
-                    <div>
-                      <div className="section-label mb-0.5" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>
-                        {item.label}
-                      </div>
-                      <div className="text-foreground text-sm">{item.value}</div>
-                    </div>
+                { icon: Mail,   label: "Email",  value: "sapthagiristudio@gmail.com" },
+                { icon: Phone,  label: "Phone",  value: "9035661669" },
+                { icon: MapPin, label: "Studio", value: "Harohalli - 562112" },
+              ].map(({ icon: Icon, label, value }) => (
+                <div key={label} className="flex items-start gap-4">
+                  <div className="w-9 h-9 border border-border flex items-center justify-center flex-shrink-0 mt-0.5 rounded-sm">
+                    <Icon size={14} className="text-primary" />
                   </div>
-                );
-              })}
+                  <div>
+                    <div className="section-label mb-0.5" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>{label}</div>
+                    <div className="text-foreground text-sm">{value}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-
-            {/* Business Hours */}
             <div className="mt-8 pt-8 border-t border-border">
-              <div className="section-label mb-3" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>
-                Business Hours
-              </div>
+              <div className="section-label mb-3" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>Business Hours</div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Mon – Sat</span>
                   <span className="text-foreground font-medium">9:00 AM – 8:00 PM</span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Sunday</span>
                   <span className="text-primary text-xs font-medium uppercase" style={{ letterSpacing: "0.1em" }}>By Appointment</span>
                 </div>
@@ -146,17 +207,12 @@ export function Contact() {
           </motion.div>
 
           {/* Right Column — Form */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.2 }}
-            className="lg:col-span-3"
-          >
+          <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.2 }} className="lg:col-span-3">
             <AnimatePresence mode="wait">
               {sent ? (
-                <motion.div key="success"
-                  initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                  className="h-full flex flex-col items-center justify-center text-center py-20 border border-border"
-                >
+                <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                  className="h-full flex flex-col items-center justify-center text-center py-20 border border-border">
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200 }}>
                     <CheckCircle size={48} className="text-primary mb-4" />
                   </motion.div>
@@ -171,7 +227,7 @@ export function Contact() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="section-label block mb-2" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>Full Name *</label>
-                      <input type="text" required placeholder="Murali" className={inputClass}
+                      <input type="text" required placeholder="Your name" className={inputClass}
                         value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                     </div>
                     <div>
@@ -184,51 +240,45 @@ export function Contact() {
                   {/* Phone + OTP */}
                   <div>
                     <label className="section-label block mb-2" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>
-                      Phone Number * {otpState === "verified" && (
-                        <span className="text-green-500 ml-2 normal-case font-normal flex-inline items-center gap-1">
-                          <ShieldCheck size={11} className="inline" /> Verified
+                      Phone Number *{" "}
+                      {otpState === "verified" && (
+                        <span className="text-green-500 ml-2 normal-case font-normal text-xs">
+                          <ShieldCheck size={11} className="inline mb-0.5" /> Verified
                         </span>
                       )}
                     </label>
                     <div className="flex gap-2">
                       <input type="tel" required placeholder="9035661669" className={`${inputClass} flex-1`}
                         value={form.phone} disabled={otpState === "verified"}
-                        onChange={(e) => { setForm({ ...form, phone: e.target.value }); setOtpState("idle"); setOtpError(""); }}
-                      />
+                        onChange={(e) => { setForm({ ...form, phone: e.target.value }); setOtpState("idle"); setOtpError(""); setDevMode(false); }} />
                       {otpState !== "verified" && (
-                        <button type="button" onClick={handleSendOtp}
-                          disabled={otpState === "sending" || otpState === "sent" || otpState === "verifying"}
-                          className="px-4 py-3 bg-primary text-primary-foreground hover:bg-primary-hover
-                                     text-xs uppercase font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
+                        <button type="button" onClick={devMode ? handleDevSendOtp : handleVerify}
+                          disabled={otpState === "loading"}
+                          className="px-4 py-3 bg-primary text-primary-foreground hover:bg-primary-hover text-xs uppercase font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
                           style={{ letterSpacing: "0.1em" }}>
-                          {otpState === "sending" ? <><Loader2 size={12} className="animate-spin" /> Sending...</> : "Send OTP"}
+                          {otpState === "loading" ? "Opening..." : devMode ? "Send OTP" : "Verify OTP"}
                         </button>
                       )}
                     </div>
 
-                    {/* OTP input row */}
-                    {(otpState === "sent" || otpState === "verifying") && (
-                      <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-                        className="mt-2 flex gap-2 items-center">
-                        <input type="text" maxLength={6} placeholder="Enter OTP"
-                          className="flex-1 bg-input border border-border text-foreground px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm tracking-widest"
-                          value={otpInput} onChange={(e) => { setOtpInput(e.target.value); setOtpError(""); }} />
-                        <button type="button" onClick={handleVerifyOtp} disabled={otpState === "verifying"}
-                          className="px-4 py-2.5 border border-primary text-primary hover:bg-primary hover:text-primary-foreground
-                                     text-xs uppercase font-semibold transition-colors disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap">
-                          {otpState === "verifying" ? <Loader2 size={12} className="animate-spin" /> : "Verify"}
-                        </button>
-                        <button type="button" onClick={handleSendOtp}
-                          className="text-xs text-muted-foreground hover:text-primary transition-colors whitespace-nowrap underline">
-                          Resend
-                        </button>
-                      </motion.div>
-                    )}
+                    {/* Dev-mode manual OTP entry */}
+                    <AnimatePresence>
+                      {devMode && reqId && (
+                        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }} className="mt-2 flex gap-2">
+                          <input type="text" inputMode="numeric" maxLength={6} placeholder="Enter OTP"
+                            className="flex-1 bg-input border border-border text-foreground px-4 py-2.5 focus:outline-none focus:border-primary text-sm tracking-widest"
+                            value={devOtp} onChange={(e) => { setDevOtp(e.target.value.replace(/\D/g, "")); setOtpError(""); }}
+                            onKeyDown={(e) => e.key === "Enter" && handleDevVerify()} autoFocus />
+                          <button type="button" onClick={handleDevVerify}
+                            className="px-5 py-2.5 bg-primary text-primary-foreground hover:bg-primary-hover text-xs uppercase font-semibold transition-colors">
+                            Verify
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
-                    {otpError && <p className="text-destructive text-xs mt-1">{otpError}</p>}
-                    {otpState === "sent" && !otpError && (
-                      <p className="text-muted-foreground text-xs mt-1">OTP sent to {form.phone}. Check your SMS.</p>
-                    )}
+                    {otpError && <p className={`text-xs mt-1.5 ${otpError.includes("OTP sent") ? "text-muted-foreground" : "text-destructive"}`}>{otpError}</p>}
                   </div>
 
                   {/* Service */}
@@ -252,9 +302,7 @@ export function Contact() {
                   {submitError && <p className="text-destructive text-sm">{submitError}</p>}
 
                   <button type="submit" disabled={sending || otpState !== "verified"}
-                    className="flex items-center gap-3 px-8 py-3 bg-primary text-primary-foreground
-                               hover:bg-primary-hover transition-colors duration-300 uppercase text-xs font-medium
-                               disabled:opacity-50"
+                    className="flex items-center gap-3 px-8 py-3 bg-primary text-primary-foreground hover:bg-primary-hover transition-colors duration-300 uppercase text-xs font-medium disabled:opacity-50"
                     style={{ letterSpacing: "0.2em" }}>
                     {sending ? "Sending..." : "Send Message"} <Send size={13} />
                   </button>
