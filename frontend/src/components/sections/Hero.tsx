@@ -110,7 +110,7 @@ export function Hero() {
           className="flex items-center gap-8 flex-wrap"
         >
           <Link
-            href="/booking"
+            href="/#contact"
             className="px-8 py-3 bg-primary text-primary-foreground hover:bg-primary-hover
                        transition-colors duration-300 uppercase text-xs font-medium"
             style={{ letterSpacing: "0.2em" }}

@@ -104,7 +104,7 @@ export function Nav() {
           </a>
 
           <Link
-            href="/booking"
+            href="/#services"
             className={`px-5 py-2 border transition-all duration-300 uppercase text-[11px] font-medium ${
               scrolled
                 ? "border-primary text-primary hover:bg-primary hover:text-primary-foreground"
@@ -164,7 +164,7 @@ export function Nav() {
                 <Download size={12} /> Download Brochure
               </a>
               <Link
-                href="/booking"
+                href="/#services"
                 onClick={() => setMenuOpen(false)}
                 className="self-start px-5 py-2 border border-primary text-primary hover:bg-primary
                            hover:text-primary-foreground transition-all duration-300 uppercase text-xs mt-2"

@@ -56,7 +56,7 @@ export function Footer() {
                 </a>
               ))}
               <Link
-                href="/booking"
+                href="/#services"
                 className="text-primary hover:text-primary-hover transition-colors duration-200 uppercase text-xs"
                 style={{ fontFamily: "var(--font-sans)", letterSpacing: "0.15em" }}
               >
