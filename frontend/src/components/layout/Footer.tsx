@@ -4,11 +4,11 @@ import Link from "next/link";
 import { Globe, Play, Image } from "lucide-react";
 
 const navLinks = [
-  { label: "Services", href: "#services" },
-  { label: "Work", href: "#work" },
-  { label: "About", href: "#about" },
-  { label: "Studio", href: "#studio" },
-  { label: "Contact", href: "#contact" },
+  { label: "Services", href: "/#services" },
+  { label: "Work",     href: "/#work" },
+  { label: "About",    href: "/#about" },
+  { label: "Studio",   href: "/#studio" },
+  { label: "Contact",  href: "/#contact" },
 ];
 
 const socialLinks = [

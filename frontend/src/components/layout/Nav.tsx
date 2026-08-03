@@ -7,11 +7,11 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
 const links = [
-  { label: "Services", href: "#services" },
-  { label: "Work", href: "#work" },
-  { label: "About", href: "#about" },
-  { label: "Studio", href: "#studio" },
-  { label: "Contact", href: "#contact" },
+  { label: "Services", href: "/#services" },
+  { label: "Work",     href: "/#work" },
+  { label: "About",    href: "/#about" },
+  { label: "Studio",   href: "/#studio" },
+  { label: "Contact",  href: "/#contact" },
 ];
 
 // Brochure filename must match the actual file in /public

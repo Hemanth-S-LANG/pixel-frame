@@ -7,23 +7,23 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const testimonials = [
   {
     quote:
-      "Marcus has shot two campaigns for us and both times delivered work that stopped people mid-scroll. He has a rare ability to hold space on set while still pushing the creative forward.",
-    name: "Sarah Okafor",
-    title: "Creative Director, Meridian Agency",
+      "We are extremely happy with the photography and videography by Sapthagiri Studio. Mr. Murali beautifully captured every precious moment of our baby's naming ceremony with great creativity and attention to detail. The photos and videos are truly memorable, and we highly recommend their services.",
+    name: "Hemanth S",
+    title: "Naming Ceremony",
     img: "https://images.unsplash.com/photo-1598006839649-5588feb1bae0?w=100&h=100&fit=crop&auto=format&face",
   },
   {
     quote:
-      "We booked Cole Studio for a three-day shoot and were genuinely impressed. The space is immaculate, the lighting infrastructure is serious, and Marcus's team ran a tight set.",
-    name: "James Trevelyan",
-    title: "Executive Producer, Liminal Films",
+      "We had an amazing experience with Sapthagiri Studio for our family portraits. Mr. Murali made everyone feel comfortable and captured natural, beautiful expressions in every shot. The photographs turned out stunning, and we will cherish these memories forever.",
+    name: "JayaSurya Reddy M ",
+    title: "Family Potraits",
     img: "https://images.unsplash.com/photo-1542992933-ce75d0187ec1?w=100&h=100&fit=crop&auto=format",
   },
   {
     quote:
-      "When my label asked for a performance film that felt both intimate and cinematic, Marcus understood immediately. The final cut exceeded everything we imagined in the brief.",
-    name: "Nadia Vasquez",
-    title: "Recording Artist — Interscope Records",
+      "A big thank you to Sapthagiri Studio for making our birthday celebration unforgettable. Mr. Murali and his team captured every smile, candid moment, and special memory perfectly. The quality, professionalism, and timely delivery exceeded our expectations.",
+    name: "Harika M",
+    title: "Birthday Celebration shoot",
     img: "https://images.unsplash.com/photo-1654765437547-6b572f52ee1a?w=100&h=100&fit=crop&auto=format",
   },
 ];
