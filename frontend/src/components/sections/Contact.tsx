@@ -13,8 +13,8 @@ const serviceOptions = [
 ];
 
 const API          = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-const WIDGET_ID    = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID  || "3668626e6164363530363934";
-const AUTH_TOKEN   = process.env.NEXT_PUBLIC_MSG91_AUTH_TOKEN || "556661To8EbYr9qBd16a6f53a2P1";
+const WIDGET_ID    = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID;
+const AUTH_TOKEN   = process.env.NEXT_PUBLIC_MSG91_AUTH_TOKEN;
 
 declare global {
   interface Window {
@@ -61,6 +61,11 @@ export function Contact() {
       return;
     }
 
+    if (!WIDGET_ID || !AUTH_TOKEN) {
+      setOtpError("OTP service is not configured — contact us directly via WhatsApp or phone.");
+      return;
+    }
+
     // Retry — let user change number
     if (otpState === "loading") return;
 
@@ -74,8 +79,8 @@ export function Contact() {
         return;
       }
       window.initSendOTP({
-        widgetId:   WIDGET_ID,
-        tokenAuth:  AUTH_TOKEN,
+        widgetId:   WIDGET_ID!,
+        tokenAuth:  AUTH_TOKEN!,
         identifier: `91${phone}`,
         success: (_data) => {
           // MSG91 widget called success — OTP verified by MSG91 itself.
@@ -294,7 +299,7 @@ export function Contact() {
                         onChange={(e) => { setForm({ ...form, phone: e.target.value }); setOtpState("idle"); setOtpError(""); setDevMode(false); setPhoneVerifiedToken(null); }} />
                       {otpState !== "verified" && (
                         <button type="button" onClick={devMode ? handleDevSendOtp : handleVerify}
-                          disabled={otpState === "loading"}
+                          disabled={otpState === "loading" || (!WIDGET_ID || !AUTH_TOKEN) && !devMode}
                           className="px-4 py-3 bg-primary text-primary-foreground hover:bg-primary-hover text-xs uppercase font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
                           style={{ letterSpacing: "0.1em" }}>
                           {otpState === "loading" ? "Opening..." : devMode ? "Send OTP" : "Verify OTP"}
