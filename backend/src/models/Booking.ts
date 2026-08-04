@@ -29,7 +29,7 @@ const BookingSchema = new Schema<IBooking>(
     bookingDate: { type: Date, required: true },
     amount: { type: Number, required: true },
     currency: { type: String, default: "INR" },
-    razorpayOrderId: { type: String, default: "" },
+    razorpayOrderId:   { type: String, default: "" },
     razorpayPaymentId: { type: String, default: "" },
     razorpaySignature: { type: String, default: "" },
     paymentStatus: {
@@ -47,7 +47,7 @@ const BookingSchema = new Schema<IBooking>(
   { timestamps: true }
 );
 
-BookingSchema.index({ razorpayOrderId: 1 });
+BookingSchema.index({ razorpayOrderId: 1 }, { unique: true, sparse: true });
 BookingSchema.index({ customerEmail: 1 });
 BookingSchema.index({ createdAt: -1 });
 

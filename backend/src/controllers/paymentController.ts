@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import crypto from "crypto";
 import Razorpay from "razorpay";
+import { verifyRazorpaySignature } from "../utils/verifyRazorpaySignature.js";
 
 // Initialize Razorpay instance
 const getRazorpayInstance = () => {
@@ -59,15 +59,13 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Generate the expected signature
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET as string)
-      .update(body)
-      .digest("hex");
-
-    // Compare signatures
-    const isAuthentic = expectedSignature === razorpay_signature;
+    // Verify signature using shared util (timing-safe comparison, secret from env)
+    const isAuthentic = verifyRazorpaySignature(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      process.env.RAZORPAY_KEY_SECRET as string
+    );
 
     if (isAuthentic) {
       res.json({

@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
+import Razorpay from "razorpay";
 import TimeSlot from "../models/TimeSlot.js";
 import Booking from "../models/Booking.js";
+import Program from "../models/Program.js";
 import { getUTCDayRange, getUTCMonthRange, getLocalDateStr } from "../utils/dateUtils.js";
+import { verifyRazorpaySignature } from "../utils/verifyRazorpaySignature.js";
 
 // GET /api/bookings/available-dates?month=YYYY-MM&programId=X (programId optional)
 // Returns dates in the given month that have at least one available slot.
@@ -78,8 +81,15 @@ export const getAvailableSlots = async (req: Request, res: Response): Promise<vo
   }
 };
 
-// POST /api/bookings — Create a booking (called after payment verification)
-// Uses ATOMIC MongoDB operations to prevent double-booking under concurrent load.
+// POST /api/bookings — Create a booking after verified payment.
+//
+// Security order of operations (must all pass before any DB write):
+//   1. Verify Razorpay signature server-side (HMAC-SHA256, timing-safe).
+//   2. Look up Program.price server-side — never trust amount from client.
+//      Also confirm the Razorpay order is "paid" and amount_paid matches.
+//   3. Atomic slot reservation (existing findOneAndUpdate — unchanged).
+//   4. Create Booking. razorpayOrderId has a unique index — duplicate
+//      payments are caught as 409 instead of 500.
 export const createBooking = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
@@ -88,33 +98,105 @@ export const createBooking = async (req: Request, res: Response): Promise<void> 
       customerPhone,
       programId,
       timeSlotId,
-      amount,
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature,
       notes,
+      // NOTE: `amount` from req.body is intentionally ignored — we look up
+      //       the authoritative price from the DB below.
     } = req.body;
 
-    // ATOMIC: Reserve the time slot in a single database operation.
-    // This uses findOneAndUpdate with conditions to guarantee only ONE request
-    // can claim the slot even if 100 users click "Book Now" at the same instant.
-    // The $inc and condition ($expr: currentBookings < maxBookings) are evaluated
-    // atomically by MongoDB — no race condition possible.
+    // ── GUARD: required fields ──────────────────────────────────────────────
+    if (!customerName || !customerEmail || !customerPhone || !programId ||
+        !timeSlotId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      res.status(400).json({ success: false, message: "Missing required booking fields" });
+      return;
+    }
+
+    // ── STEP 1: Verify Razorpay signature (timing-safe HMAC-SHA256) ─────────
+    // Any fake/tampered values will fail here before touching the DB.
+    let signatureValid: boolean;
+    try {
+      signatureValid = verifyRazorpaySignature(
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        process.env.RAZORPAY_KEY_SECRET as string
+      );
+    } catch (err) {
+      console.error("Signature verification error:", err);
+      res.status(500).json({ success: false, message: "Payment verification configuration error" });
+      return;
+    }
+
+    if (!signatureValid) {
+      res.status(400).json({
+        success: false,
+        message: "Payment signature verification failed — possible tampering detected",
+      });
+      return;
+    }
+
+    // ── STEP 2a: Look up authoritative price from DB ─────────────────────────
+    const program = await Program.findById(programId).lean();
+    if (!program) {
+      res.status(400).json({ success: false, message: "Program not found" });
+      return;
+    }
+    const authorizedAmount = program.price; // in paise — never trust client
+
+    // ── STEP 2b: Verify order status and amount_paid with Razorpay API ───────
+    try {
+      const razorpay = new Razorpay({
+        key_id:     process.env.RAZORPAY_KEY_ID as string,
+        key_secret: process.env.RAZORPAY_KEY_SECRET as string,
+      });
+
+      const order = await razorpay.orders.fetch(razorpayOrderId);
+
+      if (order.status !== "paid") {
+        res.status(400).json({
+          success: false,
+          message: `Payment not completed — order status is "${order.status}"`,
+        });
+        return;
+      }
+
+      const amountPaid = typeof order.amount_paid === "string"
+        ? parseInt(order.amount_paid, 10)
+        : Number(order.amount_paid);
+
+      if (amountPaid !== authorizedAmount) {
+        res.status(400).json({
+          success: false,
+          message: "Amount paid does not match program price — booking rejected",
+        });
+        return;
+      }
+    } catch (err: unknown) {
+      // If razorpay.orders.fetch itself throws, it means the orderId is fake
+      // (Razorpay returns a 404-equivalent for non-existent orders).
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("Razorpay order fetch failed:", message);
+      res.status(400).json({
+        success: false,
+        message: "Could not verify payment order with Razorpay — invalid order ID",
+      });
+      return;
+    }
+
+    // ── STEP 3: ATOMIC slot reservation ──────────────────────────────────────
+    // Unchanged from original — findOneAndUpdate is atomic in MongoDB.
     const updatedSlot = await TimeSlot.findOneAndUpdate(
       {
         _id: timeSlotId,
         isBooked: false,
         $expr: { $lt: ["$currentBookings", "$maxBookings"] },
       },
-      {
-        $inc: { currentBookings: 1 },
-      },
-      {
-        new: true, // return the updated document
-      }
+      { $inc: { currentBookings: 1 } },
+      { new: true }
     );
 
-    // If null, the slot was already taken by another concurrent request
     if (!updatedSlot) {
       res.status(409).json({
         success: false,
@@ -123,33 +205,52 @@ export const createBooking = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Mark as fully booked if capacity reached
+    // Mark slot as fully booked if capacity reached
     if (updatedSlot.currentBookings >= updatedSlot.maxBookings) {
       await TimeSlot.updateOne({ _id: timeSlotId }, { isBooked: true });
     }
 
-    // Create the booking record
-    const booking = await Booking.create({
-      customerName,
-      customerEmail,
-      customerPhone,
-      program: programId,
-      timeSlot: timeSlotId,
-      bookingDate: updatedSlot.date,
-      amount,
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature,
-      paymentStatus: "completed",
-      bookingStatus: "confirmed",
-      notes: notes || "",
-    });
+    // ── STEP 4: Create Booking ────────────────────────────────────────────────
+    // razorpayOrderId has unique:true — Mongo will reject a duplicate with
+    // error code 11000, caught below and returned as a clean 409.
+    try {
+      const booking = await Booking.create({
+        customerName,
+        customerEmail,
+        customerPhone,
+        program:          programId,
+        timeSlot:         timeSlotId,
+        bookingDate:      updatedSlot.date,
+        amount:           authorizedAmount,   // ← server-authoritative price
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        paymentStatus:  "completed",
+        bookingStatus:  "confirmed",
+        notes:          notes || "",
+      });
 
-    // Populate program and slot info for the response
-    await booking.populate("program");
-    await booking.populate("timeSlot");
+      await booking.populate("program");
+      await booking.populate("timeSlot");
 
-    res.status(201).json({ success: true, data: booking });
+      res.status(201).json({ success: true, data: booking });
+    } catch (dbErr: unknown) {
+      // Duplicate razorpayOrderId — this payment was already used for a booking
+      const mongoErr = dbErr as { code?: number };
+      if (mongoErr.code === 11000) {
+        // Roll back the slot increment we just made (payment already consumed)
+        await TimeSlot.updateOne(
+          { _id: timeSlotId },
+          { $inc: { currentBookings: -1 }, isBooked: false }
+        );
+        res.status(409).json({
+          success: false,
+          message: "This payment has already been used for a booking",
+        });
+        return;
+      }
+      throw dbErr; // re-throw unexpected DB errors to outer catch
+    }
   } catch (error) {
     console.error("Error creating booking:", error);
     res.status(500).json({ success: false, message: "Failed to create booking" });
