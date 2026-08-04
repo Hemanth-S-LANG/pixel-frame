@@ -34,6 +34,7 @@ export function Contact() {
   const [form, setForm]   = useState({ name: "", email: "", phone: "", service: "", message: "" });
   const [otpState, setOtpState] = useState<OtpState>("idle");
   const [otpError, setOtpError] = useState("");
+  const [phoneVerifiedToken, setPhoneVerifiedToken] = useState<string | null>(null);
   const [sent, setSent]   = useState(false);
   const [sending, setSending] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -78,9 +79,27 @@ export function Contact() {
         identifier: `91${phone}`,
         success: (_data) => {
           // MSG91 widget called success — OTP verified by MSG91 itself.
-          // We trust this callback and mark phone as verified.
-          setOtpState("verified");
-          setOtpError("");
+          // Call our backend to get a signed phoneVerifiedToken.
+          fetch(`${API}/messages/verify-otp`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: _data.message, phone: form.phone.trim() }),
+          })
+            .then((r) => r.json())
+            .then((json) => {
+              if (json.verified && json.phoneVerifiedToken) {
+                setPhoneVerifiedToken(json.phoneVerifiedToken);
+                setOtpState("verified");
+                setOtpError("");
+              } else {
+                setOtpError("Verification failed. Please try again.");
+                setOtpState("idle");
+              }
+            })
+            .catch(() => {
+              setOtpError("Network error during verification.");
+              setOtpState("idle");
+            });
         },
         failure: (err) => {
           console.error("MSG91 OTP failure:", err);
@@ -132,11 +151,14 @@ export function Contact() {
     try {
       const res  = await fetch(`${API}/messages/verify-otp`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reqId, otp: devOtp }),
+        body: JSON.stringify({ reqId, otp: devOtp, phone: form.phone.trim() }),
       });
       const data = await res.json();
-      if (data.verified) { setOtpState("verified"); setDevMode(false); }
-      else { setOtpError(data.message || "Incorrect OTP. Try again."); }
+      if (data.verified && data.phoneVerifiedToken) {
+        setPhoneVerifiedToken(data.phoneVerifiedToken);
+        setOtpState("verified");
+        setDevMode(false);
+      } else { setOtpError(data.message || "Incorrect OTP. Try again."); }
     } catch { setOtpError("Network error."); }
   };
 
@@ -145,9 +167,13 @@ export function Contact() {
     if (otpState !== "verified") { setOtpError("Please verify your phone number first"); return; }
     setSending(true); setSubmitError("");
     try {
-      const res  = await fetch(`${API}/messages`, {
+      const res = await fetch(`${API}/messages`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, phoneVerified: true }),
+        body: JSON.stringify({
+          ...form,
+          // Send the server-issued JWT proof — never a raw boolean
+          ...(phoneVerifiedToken ? { phoneVerifiedToken } : {}),
+        }),
       });
       const data = await res.json();
       if (data.success) { setSent(true); }
@@ -265,7 +291,7 @@ export function Contact() {
                     <div className="flex gap-2">
                       <input type="tel" required placeholder="9035661669" className={`${inputClass} flex-1`}
                         value={form.phone} disabled={otpState === "verified"}
-                        onChange={(e) => { setForm({ ...form, phone: e.target.value }); setOtpState("idle"); setOtpError(""); setDevMode(false); }} />
+                        onChange={(e) => { setForm({ ...form, phone: e.target.value }); setOtpState("idle"); setOtpError(""); setDevMode(false); setPhoneVerifiedToken(null); }} />
                       {otpState !== "verified" && (
                         <button type="button" onClick={devMode ? handleDevSendOtp : handleVerify}
                           disabled={otpState === "loading"}

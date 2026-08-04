@@ -1,17 +1,67 @@
 import { Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import Message from "../models/Message.js";
 
+// Purpose claim — prevents a phone_verify token being reused for admin auth or vice-versa
+const PHONE_VERIFY_PURPOSE = "phone_verify";
+const TOKEN_TTL = "15m";
+
+/**
+ * Issues a short-lived JWT proving this phone number was OTP-verified by our server.
+ * Signed with JWT_SECRET, purpose claim prevents cross-feature reuse.
+ */
+function issuePhoneVerifiedToken(phone: string): string {
+  return jwt.sign(
+    { phone, purpose: PHONE_VERIFY_PURPOSE },
+    process.env.JWT_SECRET as string,
+    { expiresIn: TOKEN_TTL }
+  );
+}
+
 // POST /api/messages — Submit a contact message (public)
+// `phoneVerifiedToken` (optional): a JWT issued by verifyOtp — the only accepted proof.
+// A raw `phoneVerified` boolean from req.body is NEVER trusted.
 export const createMessage = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, phone, phoneVerified, service, message } = req.body;
+    const { name, email, phone, phoneVerifiedToken, service, message } = req.body;
 
     if (!name || !email || !phone || !message) {
       res.status(400).json({ success: false, message: "name, email, phone, and message are required" });
       return;
     }
 
-    const msg = await Message.create({ name, email, phone, phoneVerified: phoneVerified === true, service: service || "", message });
+    // Resolve phoneVerified from token — never from a raw boolean in req.body
+    let phoneVerified = false;
+
+    if (phoneVerifiedToken) {
+      try {
+        const payload = jwt.verify(
+          phoneVerifiedToken,
+          process.env.JWT_SECRET as string
+        ) as { phone?: string; purpose?: string };
+
+        if (
+          payload.purpose === PHONE_VERIFY_PURPOSE &&
+          payload.phone   === phone.trim()
+        ) {
+          phoneVerified = true;
+        }
+        // If purpose or phone doesn't match, silently treat as false
+      } catch {
+        // Expired, tampered, or garbage token — treat as unverified, do NOT throw
+        phoneVerified = false;
+      }
+    }
+
+    const msg = await Message.create({
+      name,
+      email,
+      phone,
+      phoneVerified,
+      service: service || "",
+      message,
+    });
+
     res.status(201).json({ success: true, data: { _id: msg._id } });
   } catch (error) {
     console.error("Error creating message:", error);
@@ -83,7 +133,7 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const apiKey  = process.env.MSG91_API_KEY;
+    const apiKey   = process.env.MSG91_API_KEY;
     const widgetId = process.env.MSG91_WIDGET_ID;
 
     if (!apiKey || !widgetId) {
@@ -92,17 +142,10 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // MSG91 Widget Send OTP API — no DLT, no template needed
     const response = await fetch("https://api.msg91.com/api/v5/widget/sendOtp", {
       method: "POST",
-      headers: {
-        "authkey": apiKey,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        widgetId,
-        identifier: `91${phone}`,
-      }),
+      headers: { "authkey": apiKey, "content-type": "application/json" },
+      body: JSON.stringify({ widgetId, identifier: `91${phone}` }),
     });
 
     const data = await response.json();
@@ -119,37 +162,44 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// POST /api/messages/verify-otp — Verify OTP via MSG91 Widget REST API
+// POST /api/messages/verify-otp — Verify OTP; on success issue a phoneVerifiedToken JWT
+// The token is the ONLY server-side proof that a phone number was OTP-verified.
 export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { reqId, otp, token } = req.body;
+    const { reqId, otp, token, phone } = req.body;
 
-    const apiKey  = process.env.MSG91_API_KEY;
+    const apiKey   = process.env.MSG91_API_KEY;
     const widgetId = process.env.MSG91_WIDGET_ID;
 
+    // ── Dev-mode bypass (no MSG91 keys configured) ────────────────────────────
     if (!apiKey || !widgetId) {
-      // Dev mode — accept any 4-6 digit OTP
       const valid = /^\d{4,6}$/.test(otp || "");
-      res.json({ success: valid, verified: valid, message: valid ? "Verified (dev mode)" : "Invalid OTP" });
+      if (valid && phone) {
+        const phoneVerifiedToken = issuePhoneVerifiedToken(phone.trim());
+        res.json({ success: true, verified: true, phoneVerifiedToken, message: "Verified (dev mode)" });
+      } else {
+        res.json({ success: false, verified: false, message: "Invalid OTP (dev mode)" });
+      }
       return;
     }
 
-    // If we received a widget token (from browser widget fallback), verify it
+    // ── Widget browser-token path (MSG91 widget called success on frontend) ───
     if (token && !reqId) {
       const verifyRes = await fetch(
         `https://api.msg91.com/api/v5/widget/verifyAccessToken?access-token=${token}`,
         { method: "GET", headers: { "authkey": apiKey } }
       );
       const data = await verifyRes.json();
-      if (data.type === "success") {
-        res.json({ success: true, verified: true });
+      if (data.type === "success" && phone) {
+        const phoneVerifiedToken = issuePhoneVerifiedToken(phone.trim());
+        res.json({ success: true, verified: true, phoneVerifiedToken });
       } else {
         res.status(400).json({ success: false, verified: false, message: "Token verification failed" });
       }
       return;
     }
 
-    // Standard flow: verify OTP using reqId
+    // ── Standard REST path: verify OTP using reqId ────────────────────────────
     if (!reqId || !otp) {
       res.status(400).json({ success: false, message: "reqId and otp are required" });
       return;
@@ -157,10 +207,7 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
 
     const response = await fetch("https://api.msg91.com/api/v5/widget/verifyOtp", {
       method: "POST",
-      headers: {
-        "authkey": apiKey,
-        "content-type": "application/json",
-      },
+      headers: { "authkey": apiKey, "content-type": "application/json" },
       body: JSON.stringify({ widgetId, reqId, otp }),
     });
 
@@ -168,7 +215,12 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
     console.log("MSG91 verifyOtp response:", data);
 
     if (data.type === "success" || data.message === "OTP verified successfully") {
-      res.json({ success: true, verified: true });
+      if (!phone) {
+        res.status(400).json({ success: false, message: "phone is required to issue verification token" });
+        return;
+      }
+      const phoneVerifiedToken = issuePhoneVerifiedToken(phone.trim());
+      res.json({ success: true, verified: true, phoneVerifiedToken });
     } else {
       res.status(400).json({ success: false, verified: false, message: data.message || "Invalid OTP" });
     }
