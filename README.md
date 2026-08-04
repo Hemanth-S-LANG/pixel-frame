@@ -61,15 +61,7 @@ npm run dev
 
 ---
 
-## 🛡️ Admin Dashboard
 
-Visit **http://localhost:3000/admin** to:
-
-- **View stats** — total bookings, today's bookings, revenue, active programs
-- **Block an entire day** — mark yourself as "On leave" so no one can book that day
-- **Unblock a day** — make yourself available again
-- **Block/unblock individual time slots** — fine-grained control
-- **View all bookings** — see customer details, dates, amounts, and payment status
 
 The booking calendar will automatically show:
 - 🟡 **Yellow dot** — some slots are already booked
