@@ -20,6 +20,28 @@ const PORT = process.env.PORT || 5000;
 const NUM_WORKERS = Math.min(os.cpus().length, 4); // Cap at 4 workers for dev sanity
 const USE_CLUSTER = process.env.NODE_ENV === "production"; // Only cluster in production
 
+// ---- Validate required environment variables --------------------------------
+// Called once in the primary process before any worker is forked or server starts.
+// If any required var is missing the process exits immediately with a clear error.
+function validateEnv(): void {
+  const required: Record<string, string> = {
+    JWT_SECRET:           "Sign admin JWTs — generate with: node -e \"require('crypto').randomBytes(64).toString('hex') |> console.log\"",
+    ADMIN_USERNAME:       "Admin portal login username",
+    ADMIN_PASSWORD_HASH:  "bcrypt hash of admin password — generate with: npx tsx src/utils/hashPassword.ts <yourpassword>",
+  };
+
+  const missing = Object.entries(required).filter(([key]) => !process.env[key]);
+
+  if (missing.length > 0) {
+    console.error("\n❌  Server startup aborted — missing required environment variables:\n");
+    for (const [key, desc] of missing) {
+      console.error(`   ${key.padEnd(22)} — ${desc}`);
+    }
+    console.error("\nSet these in your .env file and restart the server.\n");
+    process.exit(1);
+  }
+}
+
 // ---- Worker Process: Runs the Express server ----
 function startServer() {
   const app = express();
@@ -218,6 +240,10 @@ async function seedDatabase() {
 
 // ---- Main Entry ----
 async function main() {
+  // Validate required env vars once — exits immediately if any are missing.
+  // Done here (before workers fork) so the error is printed exactly once.
+  validateEnv();
+
   // In production, use cluster to fork multiple workers for multi-core scaling.
   // In dev, run a single worker for easy debugging.
   if (USE_CLUSTER && cluster.isPrimary) {

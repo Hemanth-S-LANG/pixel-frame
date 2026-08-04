@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
-const JWT_SECRET = process.env.JWT_SECRET || "default-secret-change-me";
+// No fallback defaults — if these are missing, server.ts validates and exits before we get here.
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 // Extend Request to include admin info
 export interface AdminRequest extends Request {
@@ -40,14 +42,23 @@ export const requireAdmin = (req: AdminRequest, res: Response, next: NextFunctio
 /**
  * POST /api/admin/login
  * Validates admin credentials and returns a JWT token.
+ * Password is verified with bcrypt against ADMIN_PASSWORD_HASH — never compared in plaintext.
  */
-export const adminLogin = (req: Request, res: Response): void => {
+export const adminLogin = async (req: Request, res: Response): Promise<void> => {
   const { username, password } = req.body;
 
-  const adminUsername = process.env.ADMIN_USERNAME || "admin";
-  const adminPassword = process.env.ADMIN_PASSWORD || "cole2026";
+  // No fallback — validated at startup; these must exist.
+  const adminUsername     = process.env.ADMIN_USERNAME      as string;
+  const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH as string;
 
-  if (username !== adminUsername || password !== adminPassword) {
+  // Constant-time username check (avoid early-exit timing leak)
+  const usernameMatch = username === adminUsername;
+
+  // Always run bcrypt.compare even on username mismatch to prevent timing attacks
+  // that distinguish "wrong username" from "wrong password" via response time.
+  const passwordMatch = await bcrypt.compare(password || "", adminPasswordHash);
+
+  if (!usernameMatch || !passwordMatch) {
     res.status(401).json({ success: false, message: "Invalid username or password" });
     return;
   }
@@ -55,7 +66,7 @@ export const adminLogin = (req: Request, res: Response): void => {
   const token = jwt.sign(
     { username: adminUsername, role: "admin" },
     JWT_SECRET,
-    { expiresIn: "8h" } // Token valid for 8 hours
+    { expiresIn: "8h" }
   );
 
   res.json({
