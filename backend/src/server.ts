@@ -6,6 +6,7 @@ import cors from "cors";
 import compression from "compression";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
 import connectDB from "./config/db.js";
 import programRoutes from "./routes/programRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
@@ -62,6 +63,9 @@ function startServer() {
 
   // === Body Parsing ===
   app.use(express.json({ limit: "1mb" }));
+
+  // === Cookie Parsing (required for httpOnly admin_token cookie) ===
+  app.use(cookieParser());
 
   // === Rate Limiting ===
   // General API limiter: 100 requests per minute per IP

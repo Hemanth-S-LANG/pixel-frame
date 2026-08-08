@@ -2,8 +2,18 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
-// No fallback defaults — if these are missing, server.ts validates and exits before we get here.
+// No fallback defaults — validated at startup before server starts.
 const JWT_SECRET = process.env.JWT_SECRET as string;
+
+// Cookie options — DRY so set/clear use identical attributes
+const COOKIE_NAME = "admin_token";
+const cookieOptions = (res: Response) => ({
+  httpOnly:  true,                                            // not readable by JS — closes XSS attack
+  secure:    process.env.NODE_ENV === "production",          // HTTPS-only in prod
+  sameSite:  "strict" as const,                              // no cross-site requests
+  maxAge:    8 * 60 * 60 * 1000,                             // 8 hours in ms (matches JWT expiry)
+  path:      "/",
+});
 
 // Extend Request to include admin info
 export interface AdminRequest extends Request {
@@ -12,17 +22,15 @@ export interface AdminRequest extends Request {
 
 /**
  * Middleware that protects admin routes.
- * Expects header: Authorization: Bearer <token>
+ * Reads the JWT from the httpOnly cookie — not from the Authorization header.
  */
 export const requireAdmin = (req: AdminRequest, res: Response, next: NextFunction): void => {
-  const authHeader = req.headers.authorization;
+  const token = (req as Request & { cookies: Record<string, string> }).cookies?.[COOKIE_NAME];
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!token) {
     res.status(401).json({ success: false, message: "Unauthorized — admin login required" });
     return;
   }
-
-  const token = authHeader.split(" ")[1];
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { username: string; role: string };
@@ -41,21 +49,19 @@ export const requireAdmin = (req: AdminRequest, res: Response, next: NextFunctio
 
 /**
  * POST /api/admin/login
- * Validates admin credentials and returns a JWT token.
- * Password is verified with bcrypt against ADMIN_PASSWORD_HASH — never compared in plaintext.
+ * Validates credentials with bcrypt, sets the JWT as an httpOnly cookie.
+ * Token is NOT returned in the response body — it lives only in the cookie.
  */
 export const adminLogin = async (req: Request, res: Response): Promise<void> => {
   const { username, password } = req.body;
 
-  // No fallback — validated at startup; these must exist.
   const adminUsername     = process.env.ADMIN_USERNAME      as string;
   const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH as string;
 
-  // Constant-time username check (avoid early-exit timing leak)
+  // Constant-time username check to avoid timing-based enumeration
   const usernameMatch = username === adminUsername;
 
-  // Always run bcrypt.compare even on username mismatch to prevent timing attacks
-  // that distinguish "wrong username" from "wrong password" via response time.
+  // Always run bcrypt even on username mismatch — prevents timing oracle
   const passwordMatch = await bcrypt.compare(password || "", adminPasswordHash);
 
   if (!usernameMatch || !passwordMatch) {
@@ -69,12 +75,29 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
     { expiresIn: "8h" }
   );
 
+  // Set httpOnly cookie — JS on the page cannot read this
+  res.cookie(COOKIE_NAME, token, cookieOptions(res));
+
+  // Response body does NOT include the token
   res.json({
     success: true,
     data: {
-      token,
-      expiresIn: "8h",
       username: adminUsername,
+      expiresIn: "8h",
     },
   });
+};
+
+/**
+ * POST /api/admin/logout
+ * Clears the httpOnly cookie — same options so the browser actually removes it.
+ */
+export const adminLogout = (_req: Request, res: Response): void => {
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly:  true,
+    secure:    process.env.NODE_ENV === "production",
+    sameSite:  "strict" as const,
+    path:      "/",
+  });
+  res.json({ success: true, message: "Logged out successfully" });
 };

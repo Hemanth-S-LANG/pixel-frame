@@ -15,21 +15,14 @@ interface ApiResponse<T> {
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
 
-  // Auto-attach admin JWT token for admin endpoints
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options?.headers as Record<string, string>),
   };
 
-  if (endpoint.startsWith("/admin") && typeof window !== "undefined") {
-    const token = localStorage.getItem("admin_token");
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-  }
-
   const response = await fetch(url, {
     headers,
+    credentials: "include", // sends httpOnly admin_token cookie automatically
     ...options,
   });
 
@@ -147,12 +140,16 @@ export interface PaymentOrder {
 
 // ---- Admin APIs ----
 
-// Login (no auth required)
+// Login (no auth required) — sets httpOnly cookie, no token in response body
 export const adminLogin = (data: { username: string; password: string }) =>
-  fetchApi<{ token: string; expiresIn: string; username: string }>("/admin/login", {
+  fetchApi<{ username: string; expiresIn: string }>("/admin/login", {
     method: "POST",
     body: JSON.stringify(data),
   });
+
+// Logout — clears the httpOnly cookie server-side
+export const adminLogout = () =>
+  fetchApi<{ message: string }>("/admin/logout", { method: "POST" });
 
 export const adminBlockDate = (data: { date: string; reason?: string }) =>
   fetchApi<{ blockedSlots: number }>("/admin/block-date", {

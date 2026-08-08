@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { adminLogin, requireAdmin } from "../middleware/adminAuth.js";
+import { adminLogin, adminLogout, requireAdmin } from "../middleware/adminAuth.js";
 import {
   blockDate, unblockDate, blockSlot, unblockSlot,
   getAdminSlots, getAdminBookings, getAdminStats,
@@ -12,8 +12,9 @@ import {
 
 const router = Router();
 
-// Public — login
-router.post("/login", adminLogin);
+// Public — login / logout (no auth required)
+router.post("/login",  adminLogin);
+router.post("/logout", adminLogout);
 
 // All routes below require admin JWT token
 router.use(requireAdmin);

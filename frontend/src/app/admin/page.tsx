@@ -11,7 +11,7 @@ import {
   Eye, EyeOff, Pencil, Plus, Trash2, MessageSquare
 } from "lucide-react";
 import {
-  adminLogin, adminGetStats, adminGetSlots, adminBlockDate, adminUnblockDate,
+  adminLogin, adminLogout, adminGetStats, adminGetSlots, adminBlockDate, adminUnblockDate,
   adminBlockSlot, adminUnblockSlot, adminGetBookings,
   getBlockedDatesForMonth, adminUpdateSlot, getPrograms,
   adminCreateSlot, adminDeleteSlot, adminGetAvailableDates,
@@ -94,10 +94,18 @@ export default function AdminPage() {
     setTimeout(() => setToast(""), 3000);
   };
 
-  // Force login on refresh by removing the token on mount
+  // On mount: check if an admin session cookie already exists by calling an
+  // authenticated endpoint. If it returns 200 we're still logged in; if 401 show login.
   useEffect(() => {
-    localStorage.removeItem("admin_token");
-    setIsLoggedIn(false);
+    adminGetStats()
+      .then((res) => {
+        setStats(res.data);
+        setIsLoggedIn(true);
+      })
+      .catch(() => {
+        // 401 means no valid cookie — show login screen
+        setIsLoggedIn(false);
+      });
   }, []);
 
   // Fetch stats, calendar dates, and programs once logged in
@@ -219,15 +227,12 @@ export default function AdminPage() {
     setLoginError("");
     setLoginLoading(true);
     try {
-      const res = await adminLogin({
-        username: usernameInput,
-        password: passwordInput
-      });
-      localStorage.setItem("admin_token", res.data.token);
+      const res = await adminLogin({ username: usernameInput, password: passwordInput });
+      // Cookie is set server-side (httpOnly) — no token in response body
       setUsernameInput("");
       setPasswordInput("");
       setIsLoggedIn(true);
-      showToast("Welcome back, Murali!");
+      showToast(`Welcome back, ${res.data.username}!`);
     } catch (err: any) {
       setLoginError(err.message || "Invalid credentials. Please try again.");
     } finally {
@@ -235,9 +240,9 @@ export default function AdminPage() {
     }
   };
 
-  // Handle Logout
-  const handleLogout = () => {
-    localStorage.removeItem("admin_token");
+  // Handle Logout — clears httpOnly cookie server-side
+  const handleLogout = async () => {
+    try { await adminLogout(); } catch { /* ignore errors — clear UI regardless */ }
     setIsLoggedIn(false);
     setStats(null);
     setBookings([]);
@@ -254,8 +259,7 @@ export default function AdminPage() {
     const resetTimer = () => {
       if (inactivityTimeout) clearTimeout(inactivityTimeout);
       inactivityTimeout = setTimeout(() => {
-        handleLogout();
-        showToast("Logged out due to 5 minutes of inactivity");
+        handleLogout().then(() => showToast("Logged out due to 5 minutes of inactivity"));
       }, 5 * 60 * 1000); // 5 minutes
     };
 
