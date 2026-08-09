@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import Message from "../models/Message.js";
+import { isValidEmail, isValidPhone, isValidName } from "../utils/validators.js";
 
 // Purpose claim — prevents a phone_verify token being reused for admin auth or vice-versa
 const PHONE_VERIFY_PURPOSE = "phone_verify";
@@ -30,6 +31,24 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // ── Format validation (trim first, then check) ──────────────────────────
+    const trimmedName  = String(name).trim();
+    const trimmedEmail = String(email).trim();
+    const trimmedPhone = String(phone).trim();
+
+    if (!isValidName(trimmedName)) {
+      res.status(400).json({ success: false, message: "Invalid name — must contain at least one letter and be at most 100 characters" });
+      return;
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      res.status(400).json({ success: false, message: "Invalid email format" });
+      return;
+    }
+    if (!isValidPhone(trimmedPhone)) {
+      res.status(400).json({ success: false, message: "Invalid phone number — must be a 10-digit Indian mobile number" });
+      return;
+    }
+
     // Resolve phoneVerified from token — never from a raw boolean in req.body
     let phoneVerified = false;
 
@@ -54,9 +73,9 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
     }
 
     const msg = await Message.create({
-      name,
-      email,
-      phone,
+      name:    trimmedName,
+      email:   trimmedEmail,
+      phone:   trimmedPhone,
       phoneVerified,
       service: service || "",
       message,

@@ -5,6 +5,7 @@ import Booking from "../models/Booking.js";
 import Program from "../models/Program.js";
 import { getUTCDayRange, getUTCMonthRange, getLocalDateStr } from "../utils/dateUtils.js";
 import { verifyRazorpaySignature } from "../utils/verifyRazorpaySignature.js";
+import { isValidEmail, isValidPhone, isValidName } from "../utils/validators.js";
 
 // GET /api/bookings/available-dates?month=YYYY-MM&programId=X (programId optional)
 // Returns dates in the given month that have at least one available slot.
@@ -113,6 +114,24 @@ export const createBooking = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // ── GUARD: format validation (trim first, then check) ───────────────────
+    const trimmedName  = String(customerName).trim();
+    const trimmedEmail = String(customerEmail).trim();
+    const trimmedPhone = String(customerPhone).trim();
+
+    if (!isValidName(trimmedName)) {
+      res.status(400).json({ success: false, message: "Invalid name — must contain at least one letter and be at most 100 characters" });
+      return;
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      res.status(400).json({ success: false, message: "Invalid email format" });
+      return;
+    }
+    if (!isValidPhone(trimmedPhone)) {
+      res.status(400).json({ success: false, message: "Invalid phone number — must be a 10-digit Indian mobile number" });
+      return;
+    }
+
     // ── STEP 1: Verify Razorpay signature (timing-safe HMAC-SHA256) ─────────
     // Any fake/tampered values will fail here before touching the DB.
     let signatureValid: boolean;
@@ -215,9 +234,9 @@ export const createBooking = async (req: Request, res: Response): Promise<void> 
     // error code 11000, caught below and returned as a clean 409.
     try {
       const booking = await Booking.create({
-        customerName,
-        customerEmail,
-        customerPhone,
+        customerName:     trimmedName,
+        customerEmail:    trimmedEmail,
+        customerPhone:    trimmedPhone,
         program:          programId,
         timeSlot:         timeSlotId,
         bookingDate:      updatedSlot.date,
