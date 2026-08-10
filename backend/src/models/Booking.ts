@@ -12,7 +12,7 @@ export interface IBooking extends Document {
   razorpayOrderId: string;
   razorpayPaymentId: string;
   razorpaySignature: string;
-  paymentStatus: "pending" | "completed" | "failed" | "refunded";
+  paymentStatus: "pending" | "completed" | "failed" | "refunded" | "cancelled";
   bookingStatus: "confirmed" | "cancelled" | "completed";
   notes: string;
   createdAt: Date;
@@ -34,7 +34,7 @@ const BookingSchema = new Schema<IBooking>(
     razorpaySignature: { type: String, default: "" },
     paymentStatus: {
       type: String,
-      enum: ["pending", "completed", "failed", "refunded"],
+      enum: ["pending", "completed", "failed", "refunded", "cancelled"],
       default: "pending",
     },
     bookingStatus: {
