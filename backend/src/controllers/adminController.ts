@@ -565,3 +565,54 @@ export const updateBlockReason = async (req: Request, res: Response): Promise<vo
   }
 };
 
+
+// POST /api/admin/bookings/:id/cancel
+// Cancels a booking and atomically releases the associated time slot.
+// NOTE: This does NOT trigger a Razorpay refund — actual refund must be done
+//       manually via the Razorpay dashboard. This endpoint only updates the DB.
+export const cancelBooking = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      res.status(404).json({ success: false, message: "Booking not found" });
+      return;
+    }
+
+    if (booking.paymentStatus === "cancelled") {
+      res.status(400).json({ success: false, message: "Booking is already cancelled" });
+      return;
+    }
+
+    // ── Atomically decrement slot.currentBookings (never below 0) ────────────
+    // Only decrement if currentBookings > 0 to prevent going negative.
+    // If decrement brings currentBookings below maxBookings, mark slot as available.
+    const updatedSlot = await TimeSlot.findOneAndUpdate(
+      {
+        _id: booking.timeSlot,
+        currentBookings: { $gt: 0 },          // guard: never decrement below 0
+      },
+      { $inc: { currentBookings: -1 } },
+      { new: true }
+    );
+
+    if (updatedSlot && updatedSlot.currentBookings < updatedSlot.maxBookings) {
+      // Slot has capacity again — mark it as available
+      await TimeSlot.updateOne({ _id: updatedSlot._id }, { isBooked: false });
+    }
+
+    // ── Update booking status ─────────────────────────────────────────────────
+    booking.paymentStatus  = "cancelled";
+    booking.bookingStatus  = "cancelled";
+    await booking.save();
+
+    await booking.populate("program");
+    await booking.populate("timeSlot");
+
+    res.json({ success: true, data: booking });
+  } catch (error) {
+    console.error("Error cancelling booking:", error);
+    res.status(500).json({ success: false, message: "Failed to cancel booking" });
+  }
+};

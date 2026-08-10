@@ -4,7 +4,7 @@ import {
   blockDate, unblockDate, blockSlot, unblockSlot,
   getAdminSlots, getAdminBookings, getAdminStats,
   getBlockedDates, updateSlot, createSlot, deleteSlot,
-  updateBlockReason, getAdminAvailableDates,
+  updateBlockReason, getAdminAvailableDates, cancelBooking,
 } from "../controllers/adminController.js";
 import {
   getMessages, getUnreadCount, markMessageRead, deleteMessage,
@@ -37,6 +37,7 @@ router.get("/bookings", getAdminBookings);
 router.get("/stats", getAdminStats);
 router.get("/blocked-dates", getBlockedDates);
 router.get("/available-dates", getAdminAvailableDates);
+router.post("/bookings/:id/cancel", cancelBooking);
 
 // Messages
 router.get("/messages", getMessages);
