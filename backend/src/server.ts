@@ -95,11 +95,22 @@ function startServer() {
     message: { success: false, message: "Too many login attempts. Access blocked for 15 minutes." },
   });
 
+  // OTP send limiter: 3 requests per 10 minutes per IP
+  // Prevents SMS cost abuse and phone-harassment via MSG91
+  const otpLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    max: 3,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: "Too many OTP requests. Please try again later." },
+  });
+
   // Apply rate limiters
   app.use("/api", generalLimiter);
   app.use("/api/bookings", bookingLimiter);
   app.use("/api/payments", bookingLimiter);
   app.use("/api/admin/login", adminLoginLimiter);
+  app.use("/api/messages/send-otp", otpLimiter);
 
   // === Routes ===
   app.use("/api/programs", programRoutes);
