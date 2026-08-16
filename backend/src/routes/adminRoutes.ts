@@ -9,6 +9,7 @@ import {
 import {
   getMessages, getUnreadCount, markMessageRead, deleteMessage,
 } from "../controllers/messageController.js";
+import { getAdminBookingReceipt } from "../controllers/bookingController.js";
 
 const router = Router();
 
@@ -38,6 +39,7 @@ router.get("/stats", getAdminStats);
 router.get("/blocked-dates", getBlockedDates);
 router.get("/available-dates", getAdminAvailableDates);
 router.post("/bookings/:id/cancel", cancelBooking);
+router.get("/bookings/:id/receipt", getAdminBookingReceipt);
 
 // Messages
 router.get("/messages", getMessages);

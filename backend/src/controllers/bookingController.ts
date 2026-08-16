@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
 import Razorpay from "razorpay";
+import jwt from "jsonwebtoken";
 import TimeSlot from "../models/TimeSlot.js";
 import Booking from "../models/Booking.js";
 import Program from "../models/Program.js";
 import { getUTCDayRange, getUTCMonthRange, getLocalDateStr } from "../utils/dateUtils.js";
 import { verifyRazorpaySignature } from "../utils/verifyRazorpaySignature.js";
 import { isValidEmail, isValidPhone, isValidName } from "../utils/validators.js";
+import { generateReceiptPdf } from "../utils/generateReceiptPdf.js";
 
 // GET /api/bookings/available-dates?month=YYYY-MM&programId=X (programId optional)
 // Returns dates in the given month that have at least one available slot.
@@ -252,7 +254,15 @@ export const createBooking = async (req: Request, res: Response): Promise<void> 
       await booking.populate("program");
       await booking.populate("timeSlot");
 
-      res.status(201).json({ success: true, data: booking });
+      // Issue a signed 48h receipt download token — sent to the client so they
+      // can download a PDF confirmation without needing an account.
+      const receiptToken = jwt.sign(
+        { bookingId: String(booking._id), purpose: "receipt_download" },
+        process.env.JWT_SECRET as string,
+        { expiresIn: "48h" }
+      );
+
+      res.status(201).json({ success: true, data: booking, receiptToken });
     } catch (dbErr: unknown) {
       // Duplicate razorpayOrderId — this payment was already used for a booking
       const mongoErr = dbErr as { code?: number };
@@ -355,5 +365,119 @@ export const getBlockedDates = async (req: Request, res: Response): Promise<void
   } catch (error) {
     console.error("Error fetching blocked dates:", error);
     res.status(500).json({ success: false, message: "Failed to fetch blocked dates" });
+  }
+};
+
+// ── Shared PDF helper ─────────────────────────────────────────────────────────
+// Extracts populated fields from a booking and calls generateReceiptPdf.
+async function buildReceiptBuffer(bookingId: string): Promise<{ pdf: Buffer; filename: string } | null> {
+  const booking = await Booking.findById(bookingId)
+    .populate("program")
+    .populate("timeSlot")
+    .lean();
+
+  if (!booking) return null;
+
+  const program  = booking.program  as unknown as { name: string; price: number; currency: string } | null;
+  const timeSlot = booking.timeSlot as unknown as { startTime: string; endTime: string } | null;
+
+  const pdf = await generateReceiptPdf({
+    bookingId:         String(booking._id),
+    customerName:      booking.customerName,
+    customerEmail:     booking.customerEmail,
+    customerPhone:     booking.customerPhone,
+    programName:       program?.name      ?? "Unknown Service",
+    programPrice:      program?.price     ?? booking.amount,
+    currency:          program?.currency  ?? booking.currency ?? "INR",
+    bookingDate:       booking.bookingDate,
+    startTime:         timeSlot?.startTime ?? "—",
+    endTime:           timeSlot?.endTime   ?? "—",
+    razorpayPaymentId: booking.razorpayPaymentId,
+    paymentStatus:     booking.paymentStatus,
+    bookingStatus:     booking.bookingStatus,
+  });
+
+  return { pdf, filename: `receipt-${bookingId}.pdf` };
+}
+
+// GET /api/bookings/:id/receipt?token=<receiptToken>
+// Public route — verifies the signed token issued by createBooking, streams PDF.
+export const getBookingReceipt = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { token } = req.query;
+
+    if (!token) {
+      res.status(401).json({ success: false, message: "Receipt token is required" });
+      return;
+    }
+
+    // Verify and validate the token
+    let payload: { bookingId?: string; purpose?: string };
+    try {
+      payload = jwt.verify(token as string, process.env.JWT_SECRET as string) as typeof payload;
+    } catch {
+      res.status(401).json({ success: false, message: "Invalid or expired receipt token" });
+      return;
+    }
+
+    if (payload.purpose !== "receipt_download") {
+      res.status(403).json({ success: false, message: "Token is not valid for receipt download" });
+      return;
+    }
+
+    if (payload.bookingId !== id) {
+      res.status(403).json({ success: false, message: "Token does not match this booking" });
+      return;
+    }
+
+    // Verify booking exists and payment is completed
+    const booking = await Booking.findById(id).lean();
+    if (!booking) {
+      res.status(404).json({ success: false, message: "Booking not found" });
+      return;
+    }
+    if (booking.paymentStatus !== "completed") {
+      res.status(400).json({ success: false, message: "Receipt is only available for completed payments" });
+      return;
+    }
+
+    const result = await buildReceiptBuffer(id);
+    if (!result) {
+      res.status(404).json({ success: false, message: "Booking not found" });
+      return;
+    }
+
+    res.set("Content-Type", "application/pdf");
+    res.set("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.set("Content-Length", String(result.pdf.length));
+    res.send(result.pdf);
+  } catch (error) {
+    console.error("Error generating customer receipt:", error);
+    res.status(500).json({ success: false, message: "Failed to generate receipt" });
+  }
+};
+
+// GET /api/admin/bookings/:id/receipt
+// Admin route (protected by requireAdmin middleware in adminRoutes.ts).
+// No token required — admin is already authenticated via cookie.
+// Returns PDF for any booking regardless of paymentStatus (admin reference use).
+export const getAdminBookingReceipt = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    const result = await buildReceiptBuffer(id);
+    if (!result) {
+      res.status(404).json({ success: false, message: "Booking not found" });
+      return;
+    }
+
+    res.set("Content-Type", "application/pdf");
+    res.set("Content-Disposition", `attachment; filename="${result.filename}"`);
+    res.set("Content-Length", String(result.pdf.length));
+    res.send(result.pdf);
+  } catch (error) {
+    console.error("Error generating admin receipt:", error);
+    res.status(500).json({ success: false, message: "Failed to generate receipt" });
   }
 };
