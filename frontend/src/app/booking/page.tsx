@@ -55,10 +55,14 @@ function SimpleCalendar({ availableDates, blockedDates, blockReasons, selectedDa
           const dateObj = new Date(year, month, day);
           const isPast = dateObj < today, isAvailable = availableDates.includes(dateStr);
           const isBlocked = blockedDates.includes(dateStr), isSelected = selectedDate === dateStr;
+          const dateLabel = dateObj.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+          const statusLabel = isPast ? "past date" : isBlocked ? (blockReasons[dateStr] || "unavailable") : isAvailable ? "available" : "unavailable";
           return (
             <button key={dateStr}
               onClick={() => isAvailable && !isPast && !isBlocked && onSelectDate(dateStr)}
               disabled={isPast || !isAvailable || isBlocked}
+              aria-label={`${dateLabel}, ${statusLabel}`}
+              aria-pressed={isSelected}
               className={`relative h-10 flex items-center justify-center text-sm transition-all duration-200 rounded-sm
                 ${isSelected ? "bg-primary text-primary-foreground font-medium"
                   : isBlocked ? "text-destructive/50 cursor-not-allowed line-through"
@@ -195,24 +199,25 @@ function BookingContent() {
   return (
     <div className="max-w-5xl mx-auto px-6 md:px-8 py-12">
       {/* Step Indicator */}
-      <div className="flex items-center justify-center gap-2 mb-12">
+      <div className="flex items-center justify-center gap-2 mb-12" role="list" aria-label="Booking steps">
         {steps.map((s, i) => {
           const Icon = s.icon; const isActive = step === s.num; const isDone = step > s.num;
+          const stepStatus = isActive ? "current step" : isDone ? "completed" : "upcoming";
           return (
-            <div key={s.num} className="flex items-center">
-              <div className="flex flex-col items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 ${isActive ? "border-primary bg-primary text-primary-foreground" : isDone ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
-                  {isDone ? <CheckCircle size={16} /> : <Icon size={16} />}
+            <div key={s.num} className="flex items-center" role="listitem">
+              <div className="flex flex-col items-center" aria-label={`Step ${s.num}: ${s.label}, ${stepStatus}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 ${isActive ? "border-primary bg-primary text-primary-foreground" : isDone ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`} aria-current={isActive ? "step" : undefined}>
+                  {isDone ? <CheckCircle size={16} aria-hidden="true" /> : <Icon size={16} aria-hidden="true" />}
                 </div>
                 <span className={`text-xs mt-2 hidden md:block ${isActive ? "text-primary" : "text-muted-foreground"}`} style={{ letterSpacing: "0.05em" }}>{s.label}</span>
               </div>
-              {i < steps.length - 1 && <div className={`w-12 md:w-20 h-px mx-2 transition-colors ${isDone ? "bg-primary" : "bg-border"}`} />}
+              {i < steps.length - 1 && <div className={`w-12 md:w-20 h-px mx-2 transition-colors ${isDone ? "bg-primary" : "bg-border"}`} aria-hidden="true" />}
             </div>
           );
         })}
       </div>
 
-      {error && <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 mb-6 text-sm rounded">{error}</div>}
+      {error && <div role="alert" aria-live="polite" className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 mb-6 text-sm rounded">{error}</div>}
 
       <AnimatePresence mode="wait">
 
