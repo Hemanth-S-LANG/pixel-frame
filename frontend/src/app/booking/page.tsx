@@ -11,7 +11,7 @@ import {
 import {
   getAvailableDates, getAvailableSlots, createPaymentOrder,
   verifyPayment, createBooking, getBlockedDatesForMonth,
-  type TimeSlotWithProgram,
+  API_BASE_URL, type TimeSlotWithProgram,
 } from "@/lib/api";
 
 // ---- Steps: 3 total, no program selection ----
@@ -94,6 +94,7 @@ function BookingContent() {
   const [customerInfo, setCustomerInfo]   = useState({ name: "", email: "", phone: "", notes: "" });
   const [bookingComplete, setBookingComplete] = useState(false);
   const [bookingId, setBookingId]         = useState("");
+  const [receiptToken, setReceiptToken]   = useState("");
   const [error, setError]                 = useState("");
 
   // Fetch available + blocked dates (all programs)
@@ -157,7 +158,9 @@ function BookingContent() {
           try {
             await verifyPayment({ razorpay_order_id: response.razorpay_order_id, razorpay_payment_id: response.razorpay_payment_id, razorpay_signature: response.razorpay_signature });
             const bookingRes = await createBooking({ customerName: customerInfo.name, customerEmail: customerInfo.email, customerPhone: customerInfo.phone, programId: prog._id, timeSlotId: selectedSlot._id, amount: prog.price, razorpayOrderId: response.razorpay_order_id, razorpayPaymentId: response.razorpay_payment_id, razorpaySignature: response.razorpay_signature, notes: customerInfo.notes });
-            setBookingId(bookingRes.data._id); setBookingComplete(true);
+            const bookingData = bookingRes as { data: { _id: string }; receiptToken?: string };
+            setBookingId(bookingData.data._id); setBookingComplete(true);
+            if (bookingData.receiptToken) setReceiptToken(bookingData.receiptToken);
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "";
             if (msg.includes("just been booked") || msg.includes("409")) { setError("This slot was just booked. Please pick another."); setSelectedSlot(null); setStep(1); }
@@ -192,6 +195,16 @@ function BookingContent() {
           </div>
         </div>
         <a href="/" className="px-8 py-3 bg-primary text-primary-foreground hover:bg-primary-hover transition-colors duration-300 uppercase text-xs font-medium inline-block" style={{ letterSpacing: "0.2em" }}>Back to Home</a>
+        {receiptToken && (
+          <a
+            href={`${API_BASE_URL}/bookings/${bookingId}/receipt?token=${receiptToken}`}
+            download={`receipt-${bookingId}.pdf`}
+            className="px-8 py-3 border border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-colors duration-300 uppercase text-xs font-medium inline-block mt-3"
+            style={{ letterSpacing: "0.2em" }}
+          >
+            Download Receipt
+          </a>
+        )}
       </motion.div>
     );
   }
