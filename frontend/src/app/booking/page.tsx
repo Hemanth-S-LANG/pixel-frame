@@ -14,6 +14,11 @@ import {
   API_BASE_URL, type TimeSlotWithProgram,
 } from "@/lib/api";
 
+// ---- Client-side validators (mirror backend/src/utils/validators.ts exactly) ----
+const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
+const isValidPhone = (v: string) => /^(\+91|91)?[6-9]\d{9}$/.test(v.trim().replace(/\s/g, ""));
+const isValidName  = (v: string) => { const t = v.trim(); return t.length > 0 && t.length <= 100 && /[a-zA-Z\u0080-\uFFFF]/.test(t); };
+
 // ---- Steps: 3 total, no program selection ----
 const steps = [
   { num: 1, label: "Date & Time", icon: CalendarIcon },
@@ -96,6 +101,7 @@ function BookingContent() {
   const [bookingId, setBookingId]         = useState("");
   const [receiptToken, setReceiptToken]   = useState("");
   const [error, setError]                 = useState("");
+  const [fieldTouched, setFieldTouched]   = useState({ name: false, email: false, phone: false });
 
   // Fetch available + blocked dates (all programs)
   const fetchDates = useCallback(async () => {
@@ -302,15 +308,56 @@ function BookingContent() {
             <h2 className="heading-display mb-2" style={{ fontSize: "clamp(1.5rem,3vw,2rem)" }}>Your Details</h2>
             <p className="body-muted mb-8">Tell us who you are so we can confirm your booking.</p>
             <div className="max-w-lg space-y-5">
-              {[{ label: "Full Name *", type: "text", key: "name", ph: "Your full name" }, { label: "Email *", type: "email", key: "email", ph: "your@email.com" }, { label: "Phone *", type: "tel", key: "phone", ph: "+91 98765 43210" }].map(({ label, type, key, ph }) => (
-                <div key={key}>
-                  <label className="section-label block mb-2" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>{label}</label>
-                  <input type={type} required placeholder={ph}
-                    className="w-full bg-input border border-border text-foreground px-4 py-3 focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground text-sm"
-                    value={customerInfo[key as keyof typeof customerInfo]}
-                    onChange={(e) => setCustomerInfo({ ...customerInfo, [key]: e.target.value })} />
-                </div>
-              ))}
+
+              {/* Full Name */}
+              <div>
+                <label className="section-label block mb-2" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>Full Name *</label>
+                <input type="text" required placeholder="Your full name"
+                  className={`w-full bg-input border text-foreground px-4 py-3 focus:outline-none transition-colors placeholder-muted-foreground text-sm ${
+                    fieldTouched.name && !isValidName(customerInfo.name) ? "border-destructive focus:border-destructive" : "border-border focus:border-primary"
+                  }`}
+                  value={customerInfo.name}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
+                  onBlur={() => setFieldTouched((t) => ({ ...t, name: true }))}
+                />
+                {fieldTouched.name && !isValidName(customerInfo.name) && (
+                  <p className="text-destructive text-xs mt-1">Enter a valid name (letters only, max 100 characters)</p>
+                )}
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="section-label block mb-2" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>Email *</label>
+                <input type="email" required placeholder="your@email.com"
+                  className={`w-full bg-input border text-foreground px-4 py-3 focus:outline-none transition-colors placeholder-muted-foreground text-sm ${
+                    fieldTouched.email && !isValidEmail(customerInfo.email) ? "border-destructive focus:border-destructive" : "border-border focus:border-primary"
+                  }`}
+                  value={customerInfo.email}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
+                  onBlur={() => setFieldTouched((t) => ({ ...t, email: true }))}
+                />
+                {fieldTouched.email && !isValidEmail(customerInfo.email) && (
+                  <p className="text-destructive text-xs mt-1">Enter a valid email address</p>
+                )}
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="section-label block mb-2" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>Phone *</label>
+                <input type="tel" required placeholder="+91 98765 43210"
+                  className={`w-full bg-input border text-foreground px-4 py-3 focus:outline-none transition-colors placeholder-muted-foreground text-sm ${
+                    fieldTouched.phone && !isValidPhone(customerInfo.phone) ? "border-destructive focus:border-destructive" : "border-border focus:border-primary"
+                  }`}
+                  value={customerInfo.phone}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                  onBlur={() => setFieldTouched((t) => ({ ...t, phone: true }))}
+                />
+                {fieldTouched.phone && !isValidPhone(customerInfo.phone) && (
+                  <p className="text-destructive text-xs mt-1">Enter a valid 10-digit Indian mobile number</p>
+                )}
+              </div>
+
+              {/* Notes */}
               <div>
                 <label className="section-label block mb-2" style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}>Notes (Optional)</label>
                 <textarea rows={3} placeholder="Any special requests..."
@@ -318,12 +365,23 @@ function BookingContent() {
                   value={customerInfo.notes} onChange={(e) => setCustomerInfo({ ...customerInfo, notes: e.target.value })} />
               </div>
             </div>
+
             <div className="flex justify-between mt-8">
               <button onClick={() => setStep(1)} className="flex items-center gap-2 px-6 py-3 border border-border text-foreground hover:border-primary transition-colors uppercase text-xs" style={{ letterSpacing: "0.15em" }}>
                 <ArrowLeft size={14} /> Back
               </button>
-              <button onClick={() => { if (customerInfo.name && customerInfo.email && customerInfo.phone) setStep(3); }}
-                disabled={!customerInfo.name || !customerInfo.email || !customerInfo.phone}
+              <button
+                onClick={() => {
+                  // Mark all fields touched so errors show on attempted submit
+                  setFieldTouched({ name: true, email: true, phone: true });
+                  if (isValidName(customerInfo.name) && isValidEmail(customerInfo.email) && isValidPhone(customerInfo.phone)) {
+                    setStep(3);
+                  }
+                }}
+                disabled={
+                  !customerInfo.name || !customerInfo.email || !customerInfo.phone ||
+                  !isValidName(customerInfo.name) || !isValidEmail(customerInfo.email) || !isValidPhone(customerInfo.phone)
+                }
                 className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground hover:bg-primary-hover transition-colors uppercase text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed"
                 style={{ letterSpacing: "0.15em" }}>
                 Next <ArrowRight size={14} />
