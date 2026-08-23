@@ -101,6 +101,7 @@ function BookingContent() {
   const [bookingId, setBookingId]         = useState("");
   const [receiptToken, setReceiptToken]   = useState("");
   const [error, setError]                 = useState("");
+  const [paymentFailedLink, setPaymentFailedLink] = useState("");
   const [fieldTouched, setFieldTouched]   = useState({ name: false, email: false, phone: false });
 
   // Fetch available + blocked dates (all programs)
@@ -144,7 +145,7 @@ function BookingContent() {
   const handlePayment = async () => {
     if (!selectedSlot) return;
     const prog = selectedSlot.program;
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setPaymentFailedLink("");
     try {
       const orderRes = await createPaymentOrder({ amount: prog.price, currency: prog.currency, programName: prog.name, customerEmail: customerInfo.email });
       const { orderId, amount, currency, keyId } = orderRes.data;
@@ -170,7 +171,20 @@ function BookingContent() {
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "";
             if (msg.includes("just been booked") || msg.includes("409")) { setError("This slot was just booked. Please pick another."); setSelectedSlot(null); setStep(1); }
-            else { setError("Payment verified but booking failed. Please contact support."); }
+            else {
+              // Payment was captured but booking creation failed — give the customer
+              // a direct WhatsApp link pre-filled with all context support needs.
+              const waMsg = encodeURIComponent(
+                `Hi, my payment went through but the booking failed.\n\n` +
+                `Payment ID: ${response.razorpay_payment_id}\n` +
+                `Amount: ${formatPrice(prog.price, prog.currency)}\n` +
+                `Date: ${selectedDate}\n` +
+                `Time: ${selectedSlot?.startTime} – ${selectedSlot?.endTime}\n\n` +
+                `Please help me confirm my booking.`
+              );
+              setPaymentFailedLink(`https://wa.me/919035661669?text=${waMsg}`);
+              setError("Payment verified but booking creation failed. Please contact us immediately so we can confirm your booking.");
+            }
           }
           setLoading(false);
         },
@@ -236,7 +250,30 @@ function BookingContent() {
         })}
       </div>
 
-      {error && <div role="alert" aria-live="polite" className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 mb-6 text-sm rounded">{error}</div>}
+      {error && (
+        <div role="alert" aria-live="polite" className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 mb-6 text-sm rounded">
+          <span>{error}</span>
+          {paymentFailedLink && (
+            <span className="block mt-2 space-x-3 text-xs">
+              <a
+                href={paymentFailedLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-semibold hover:opacity-80 transition-opacity"
+              >
+                📲 Message us on WhatsApp
+              </a>
+              <span className="opacity-50">or</span>
+              <a
+                href="tel:919035661669"
+                className="underline font-semibold hover:opacity-80 transition-opacity"
+              >
+                📞 Call 9035661669
+              </a>
+            </span>
+          )}
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
 
