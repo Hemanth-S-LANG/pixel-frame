@@ -147,7 +147,7 @@ function BookingContent() {
     const prog = selectedSlot.program;
     setLoading(true); setError(""); setPaymentFailedLink("");
     try {
-      const orderRes = await createPaymentOrder({ amount: prog.price, currency: prog.currency, programName: prog.name, customerEmail: customerInfo.email });
+      const orderRes = await createPaymentOrder({ programId: prog._id, customerEmail: customerInfo.email });
       const { orderId, amount, currency, keyId } = orderRes.data;
       if (!(window as unknown as Record<string, unknown>).Razorpay) {
         await new Promise<void>((resolve, reject) => {
