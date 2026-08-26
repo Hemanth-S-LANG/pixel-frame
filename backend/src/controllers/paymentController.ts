@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Razorpay from "razorpay";
+import Program from "../models/Program.js";
 import { verifyRazorpaySignature } from "../utils/verifyRazorpaySignature.js";
 
 // Initialize Razorpay instance
@@ -11,24 +12,32 @@ const getRazorpayInstance = () => {
 };
 
 // POST /api/payments/create-order
-// Creates a Razorpay order and returns the order details
+// Creates a Razorpay order using the server-authoritative price from the Program DB record.
+// The client sends programId — the amount is NEVER trusted from the request body.
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { amount, currency = "INR", programName, customerEmail } = req.body;
+    const { programId, currency = "INR", customerEmail } = req.body;
 
-    if (!amount) {
-      res.status(400).json({ success: false, message: "Amount is required" });
+    if (!programId) {
+      res.status(400).json({ success: false, message: "programId is required" });
+      return;
+    }
+
+    // Look up the canonical price from the DB — attacker cannot supply an arbitrary amount
+    const program = await Program.findById(programId).lean();
+    if (!program) {
+      res.status(400).json({ success: false, message: "Program not found" });
       return;
     }
 
     const razorpay = getRazorpayInstance();
 
     const order = await razorpay.orders.create({
-      amount: Math.round(amount), // amount in smallest currency unit (paise)
-      currency,
+      amount: program.price,            // server-authoritative paise value from DB
+      currency: program.currency || currency,
       receipt: `receipt_${Date.now()}`,
       notes: {
-        programName: programName || "",
+        programName:   program.name,
         customerEmail: customerEmail || "",
       },
     });
@@ -36,10 +45,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     res.json({
       success: true,
       data: {
-        orderId: order.id,
-        amount: order.amount,
+        orderId:  order.id,
+        amount:   order.amount,
         currency: order.currency,
-        keyId: process.env.RAZORPAY_KEY_ID,
+        keyId:    process.env.RAZORPAY_KEY_ID,
       },
     });
   } catch (error) {

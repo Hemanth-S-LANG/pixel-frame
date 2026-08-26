@@ -55,7 +55,7 @@ export const createBooking = (data: CreateBookingPayload) =>
 export const getBookingById = (id: string) => fetchApi<Booking>(`/bookings/${id}`);
 
 // Payments
-export const createPaymentOrder = (data: { amount: number; currency?: string; programName?: string; customerEmail?: string }) =>
+export const createPaymentOrder = (data: { programId: string; customerEmail?: string }) =>
   fetchApi<PaymentOrder>("/payments/create-order", {
     method: "POST",
     body: JSON.stringify(data),
