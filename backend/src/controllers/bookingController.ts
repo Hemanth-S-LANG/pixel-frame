@@ -286,10 +286,35 @@ export const createBooking = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// GET /api/bookings/:id — Get booking details
+// GET /api/bookings/:id?token=<receiptToken> — Get booking details
+// Protected by the same signed token issued by createBooking (purpose: "receipt_download").
+// Returns 401 if token is missing/invalid, 403 if it doesn't match this booking.
 export const getBookingById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const booking = await Booking.findById(req.params.id)
+    const id = req.params.id;
+    const { token } = req.query;
+
+    if (!token) {
+      res.status(401).json({ success: false, message: "Access token is required" });
+      return;
+    }
+
+    // Verify the signed token
+    let payload: { bookingId?: string; purpose?: string };
+    try {
+      payload = jwt.verify(token as string, process.env.JWT_SECRET as string) as typeof payload;
+    } catch {
+      res.status(401).json({ success: false, message: "Invalid or expired token" });
+      return;
+    }
+
+    // Token must be a receipt_download token and must match the requested booking
+    if (payload.purpose !== "receipt_download" || payload.bookingId !== id) {
+      res.status(403).json({ success: false, message: "Token does not match this booking" });
+      return;
+    }
+
+    const booking = await Booking.findById(id)
       .populate("program")
       .populate("timeSlot");
 

@@ -52,7 +52,7 @@ export const createBooking = (data: CreateBookingPayload) =>
     body: JSON.stringify(data),
   });
 
-export const getBookingById = (id: string) => fetchApi<Booking>(`/bookings/${id}`);
+export const getBookingById = (id: string, token: string) => fetchApi<Booking>(`/bookings/${id}?token=${encodeURIComponent(token)}`);
 
 // Payments
 export const createPaymentOrder = (data: { programId: string; customerEmail?: string }) =>
