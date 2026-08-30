@@ -339,38 +339,10 @@ export const updateSlot = async (req: Request, res: Response): Promise<void> => 
         targetProgram = await Program.findOne({ name: { $regex: new RegExp(`^${program.trim()}$`, "i") } });
       }
       
-      // If still not found, we create a new program by copying the current slot's program properties
+      // If still not found, reject — never auto-create programs from slot edits
       if (!targetProgram) {
-        // Fetch the slot's current program to copy its properties
-        const currentProgram = await Program.findById(slot.program);
-        if (currentProgram) {
-          targetProgram = await Program.create({
-            name: program.trim(),
-            description: currentProgram.description,
-            price: currentProgram.price,
-            currency: currentProgram.currency,
-            duration: currentProgram.duration,
-            category: currentProgram.category,
-            image: currentProgram.image,
-            icon: currentProgram.icon,
-            tags: currentProgram.tags,
-            isActive: true,
-          });
-        } else {
-          // Fallback if current program is somehow missing
-          targetProgram = await Program.create({
-            name: program.trim(),
-            description: `Custom program for ${program.trim()}`,
-            price: 500, // default 5 INR
-            currency: "INR",
-            duration: "1 hour",
-            category: "photography",
-            image: "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=800&h=600&fit=crop&auto=format",
-            icon: "Camera",
-            tags: ["Custom"],
-            isActive: true,
-          });
-        }
+        res.status(400).json({ success: false, message: "Program not found — provide a valid program ID or existing program name" });
+        return;
       }
       
       slot.program = targetProgram._id as mongoose.Types.ObjectId;
@@ -428,35 +400,9 @@ export const createSlot = async (req: Request, res: Response): Promise<void> => 
     }
 
     if (!targetProgram) {
-      // If no program exists at all, clone an existing one or create a default
-      const anyProgram = await Program.findOne();
-      if (anyProgram) {
-        targetProgram = await Program.create({
-          name: program.trim(),
-          description: anyProgram.description,
-          price: anyProgram.price,
-          currency: anyProgram.currency,
-          duration: anyProgram.duration,
-          category: anyProgram.category,
-          image: anyProgram.image,
-          icon: anyProgram.icon,
-          tags: anyProgram.tags,
-          isActive: true,
-        });
-      } else {
-        targetProgram = await Program.create({
-          name: program.trim(),
-          description: `Custom program for ${program.trim()}`,
-          price: 500, // default 5 INR
-          currency: "INR",
-          duration: "1 hour",
-          category: "photography",
-          image: "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=800&h=600&fit=crop&auto=format",
-          icon: "Camera",
-          tags: ["Custom"],
-          isActive: true,
-        });
-      }
+      // Reject — never auto-create programs from slot creation
+      res.status(400).json({ success: false, message: "Program not found — provide a valid program ID or existing program name" });
+      return;
     }
 
     // Check if a slot with same date and startTime already exists
