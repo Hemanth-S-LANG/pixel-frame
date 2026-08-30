@@ -60,8 +60,6 @@ export default function AdminPage() {
   const [editStartTime, setEditStartTime] = useState("");
   const [editEndTime, setEditEndTime] = useState("");
   const [editProgram, setEditProgram] = useState("");
-  const [isCustomProgram, setIsCustomProgram] = useState(false);
-  const [customProgramName, setCustomProgramName] = useState("");
 
   // Programs list for the program selector in edit mode
   const [allPrograms, setAllPrograms] = useState<Program[]>([]);
@@ -72,8 +70,6 @@ export default function AdminPage() {
   const [newSlotStartTime, setNewSlotStartTime] = useState("");
   const [newSlotEndTime, setNewSlotEndTime] = useState("");
   const [newSlotProgram, setNewSlotProgram] = useState("");
-  const [newSlotIsCustomProgram, setNewSlotIsCustomProgram] = useState(false);
-  const [newSlotCustomProgramName, setNewSlotCustomProgramName] = useState("");
   
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState("");
@@ -381,13 +377,9 @@ export default function AdminPage() {
   const handleCreateSlot = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDate) return;
-    
-    const programValue = newSlotIsCustomProgram 
-      ? newSlotCustomProgramName.trim() 
-      : newSlotProgram;
 
-    if (!programValue) {
-      showToast("Please select or enter a program");
+    if (!newSlotProgram) {
+      showToast("Please select a program");
       return;
     }
     if (!newSlotStartTime || !newSlotEndTime) {
@@ -401,13 +393,12 @@ export default function AdminPage() {
         date: selectedDate,
         startTime: newSlotStartTime,
         endTime: newSlotEndTime,
-        program: programValue,
+        program: newSlotProgram,
       });
       showToast("Slot created successfully");
       setIsAddingSlot(false);
       setNewSlotStartTime("");
       setNewSlotEndTime("");
-      setNewSlotCustomProgramName("");
       await fetchSlots();
       await fetchBlockedDates();
       adminGetStats().then((r) => setStats(r.data)).catch(() => {});
@@ -426,8 +417,6 @@ export default function AdminPage() {
       ? slot.program._id
       : String(slot.program);
     setEditProgram(programId);
-    setIsCustomProgram(false);
-    setCustomProgramName("");
   };
 
   // Save edited slot (times + program)
@@ -439,25 +428,16 @@ export default function AdminPage() {
         startTime: editStartTime,
         endTime: editEndTime,
       };
-      
-      if (isCustomProgram) {
-        if (!customProgramName.trim()) {
-          showToast("Please enter a program name");
-          setActionLoading("");
-          return;
-        }
-        updateData.program = customProgramName.trim();
-      } else {
-        // Only send program if it was changed
-        const currentSlot = slots.find((s) => s._id === editingSlotId);
-        const currentProgramId = currentSlot && typeof currentSlot.program === "object" && "_id" in currentSlot.program
-          ? currentSlot.program._id
-          : String(currentSlot?.program);
-        if (editProgram && editProgram !== currentProgramId) {
-          updateData.program = editProgram;
-        }
+
+      // Only send program if it was changed
+      const currentSlot = slots.find((s) => s._id === editingSlotId);
+      const currentProgramId = currentSlot && typeof currentSlot.program === "object" && "_id" in currentSlot.program
+        ? currentSlot.program._id
+        : String(currentSlot?.program);
+      if (editProgram && editProgram !== currentProgramId) {
+        updateData.program = editProgram;
       }
-      
+
       await adminUpdateSlot(editingSlotId, updateData);
       showToast("Slot updated successfully");
       setEditingSlotId(null);
@@ -769,41 +749,21 @@ export default function AdminPage() {
                       <div className="space-y-4">
                         {/* Program Select */}
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block"
-                              style={{ fontSize: "0.55rem" }}
-                            >
-                              Program
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => setNewSlotIsCustomProgram(!newSlotIsCustomProgram)}
-                              className="text-primary hover:text-primary-hover text-[10px] uppercase font-semibold transition-colors"
-                            >
-                              {newSlotIsCustomProgram ? "Select Existing" : "Type Custom"}
-                            </button>
-                          </div>
-                          
-                          {newSlotIsCustomProgram ? (
-                            <input
-                              type="text"
-                              required
-                              placeholder="Enter custom program name (e.g. Filmography)"
-                              className="w-full bg-input border border-border text-foreground px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
-                              value={newSlotCustomProgramName}
-                              onChange={(e) => setNewSlotCustomProgramName(e.target.value)}
-                            />
-                          ) : (
-                            <select
-                              className="w-full bg-input border border-border text-foreground px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
-                              value={newSlotProgram}
-                              onChange={(e) => setNewSlotProgram(e.target.value)}
-                            >
-                              {allPrograms.map((p) => (
-                                <option key={p._id} value={p._id}>{p.name}</option>
-                              ))}
-                            </select>
-                          )}
+                          <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-1.5"
+                            style={{ fontSize: "0.55rem" }}
+                          >
+                            Program
+                          </label>
+                          <select
+                            className="w-full bg-input border border-border text-foreground px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
+                            value={newSlotProgram}
+                            onChange={(e) => setNewSlotProgram(e.target.value)}
+                            required
+                          >
+                            {allPrograms.map((p) => (
+                              <option key={p._id} value={p._id}>{p.name}</option>
+                            ))}
+                          </select>
                         </div>
 
                         {/* Times */}
@@ -923,40 +883,20 @@ export default function AdminPage() {
                               <div className="flex flex-col gap-3 w-full">
                                 {/* Program selector */}
                                 <div>
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block"
-                                      style={{ fontSize: "0.55rem" }}
-                                    >
-                                      Program
-                                    </label>
-                                    <button
-                                      type="button"
-                                      onClick={() => setIsCustomProgram(!isCustomProgram)}
-                                      className="text-primary hover:text-primary-hover text-[10px] uppercase font-semibold transition-colors"
-                                    >
-                                      {isCustomProgram ? "Select Existing" : "Type Custom"}
-                                    </button>
-                                  </div>
-                                  
-                                  {isCustomProgram ? (
-                                    <input
-                                      type="text"
-                                      placeholder="Enter program name (e.g. Filmography)"
-                                      className="w-full bg-input border border-border text-foreground px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
-                                      value={customProgramName}
-                                      onChange={(e) => setCustomProgramName(e.target.value)}
-                                    />
-                                  ) : (
-                                    <select
-                                      className="w-full bg-input border border-border text-foreground px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
-                                      value={editProgram}
-                                      onChange={(e) => setEditProgram(e.target.value)}
-                                    >
-                                      {allPrograms.map((p) => (
-                                        <option key={p._id} value={p._id}>{p.name}</option>
-                                      ))}
-                                    </select>
-                                  )}
+                                  <label className="text-muted-foreground text-xs font-semibold uppercase tracking-wider block mb-1.5"
+                                    style={{ fontSize: "0.55rem" }}
+                                  >
+                                    Program
+                                  </label>
+                                  <select
+                                    className="w-full bg-input border border-border text-foreground px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors"
+                                    value={editProgram}
+                                    onChange={(e) => setEditProgram(e.target.value)}
+                                  >
+                                    {allPrograms.map((p) => (
+                                      <option key={p._id} value={p._id}>{p.name}</option>
+                                    ))}
+                                  </select>
                                 </div>
 
                                 {/* Time inputs */}
