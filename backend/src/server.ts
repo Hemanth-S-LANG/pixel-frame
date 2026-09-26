@@ -26,6 +26,7 @@ const USE_CLUSTER = process.env.NODE_ENV === "production"; // Only cluster in pr
 // If any required var is missing the process exits immediately with a clear error.
 function validateEnv(): void {
   const required: Record<string, string> = {
+    MONGODB_URI:          "MongoDB Atlas connection string",
     JWT_SECRET:           "Sign admin JWTs — generate with: node -e \"require('crypto').randomBytes(64).toString('hex') |> console.log\"",
     ADMIN_USERNAME:       "Admin portal login username",
     ADMIN_PASSWORD_HASH:  "bcrypt hash of admin password — generate with: npx tsx src/utils/hashPassword.ts <yourpassword>",
