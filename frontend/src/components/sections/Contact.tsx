@@ -293,14 +293,14 @@ export function Contact() {
                         </span>
                       )}
                     </label>
-                    <div className="flex gap-2">
-                      <input type="tel" required placeholder="9035661669" className={`${inputClass} flex-1`}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input type="tel" required placeholder="9035661669" className={`${inputClass} sm:flex-1`}
                         value={form.phone} disabled={otpState === "verified"}
                         onChange={(e) => { setForm({ ...form, phone: e.target.value }); setOtpState("idle"); setOtpError(""); setDevMode(false); setPhoneVerifiedToken(null); }} />
                       {otpState !== "verified" && (
                         <button type="button" onClick={devMode ? handleDevSendOtp : handleVerify}
                           disabled={otpState === "loading" || (!WIDGET_ID || !AUTH_TOKEN) && !devMode}
-                          className="px-4 py-3 bg-primary text-primary-foreground hover:bg-primary-hover text-xs uppercase font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+                          className="w-full sm:w-auto px-4 py-3 bg-primary text-primary-foreground hover:bg-primary-hover text-xs uppercase font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
                           style={{ letterSpacing: "0.1em" }}>
                           {otpState === "loading" ? "Opening..." : devMode ? "Send OTP" : "Verify OTP"}
                         </button>

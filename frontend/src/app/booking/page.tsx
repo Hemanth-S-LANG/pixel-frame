@@ -208,10 +208,10 @@ function BookingContent() {
         <div className="bg-card border border-border p-6 max-w-sm w-full mb-8 text-left">
           <h4 className="section-label mb-4" style={{ fontSize: "0.65rem" }}>Booking Details</h4>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Service</span><span className="text-foreground">{selectedSlot?.program.name}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="text-foreground">{selectedDate}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="text-foreground">{selectedSlot?.startTime} – {selectedSlot?.endTime}</span></div>
-            <div className="flex justify-between border-t border-border pt-2 mt-2"><span className="text-muted-foreground font-medium">Total</span><span className="text-primary font-medium">{selectedSlot ? formatPrice(selectedSlot.program.price, selectedSlot.program.currency) : ""}</span></div>
+            <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Service</span><span className="text-foreground text-right truncate min-w-0">{selectedSlot?.program.name}</span></div>
+            <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Date</span><span className="text-foreground">{selectedDate}</span></div>
+            <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Time</span><span className="text-foreground">{selectedSlot?.startTime} – {selectedSlot?.endTime}</span></div>
+            <div className="flex justify-between gap-3 border-t border-border pt-2 mt-2"><span className="text-muted-foreground font-medium shrink-0">Total</span><span className="text-primary font-medium">{selectedSlot ? formatPrice(selectedSlot.program.price, selectedSlot.program.currency) : ""}</span></div>
           </div>
         </div>
         <a href="/" className="px-8 py-3 bg-primary text-primary-foreground hover:bg-primary-hover transition-colors duration-300 uppercase text-xs font-medium inline-block" style={{ letterSpacing: "0.2em" }}>Back to Home</a>
@@ -436,9 +436,9 @@ function BookingContent() {
               <h3 className="section-label mb-6" style={{ fontSize: "0.65rem" }}>Booking Summary</h3>
               <div className="space-y-4">
                 {[{ label: "Service", value: selectedSlot?.program.name }, { label: "Date", value: selectedDate }, { label: "Time", value: `${selectedSlot?.startTime} — ${selectedSlot?.endTime}` }, { label: "Duration", value: selectedSlot?.program.duration }, { label: "Name", value: customerInfo.name }, { label: "Email", value: customerInfo.email }].map(({ label, value }) => (
-                  <div key={label} className="flex justify-between items-center">
-                    <span className="text-muted-foreground text-sm">{label}</span>
-                    <span className="text-foreground text-sm font-medium">{value}</span>
+                  <div key={label} className="flex justify-between items-start gap-3">
+                    <span className="text-muted-foreground text-sm shrink-0">{label}</span>
+                    <span className="text-foreground text-sm font-medium text-right min-w-0 truncate">{value}</span>
                   </div>
                 ))}
                 <div className="border-t border-border pt-4 mt-4 flex justify-between items-center">

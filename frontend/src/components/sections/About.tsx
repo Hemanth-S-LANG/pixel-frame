@@ -60,7 +60,7 @@ export function About() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="relative"
+            className="relative overflow-hidden md:overflow-visible"
           >
             <div className="absolute -top-4 -left-4 w-24 h-24 border border-primary opacity-30 z-0" />
             <img

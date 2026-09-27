@@ -72,17 +72,19 @@ function ProjectCard({ project, index }: { project: (typeof projects)[0]; index:
         style={{ minHeight: project.tall ? "480px" : "280px" }}
         loading="lazy"
       />
+      {/* Gradient overlay — always visible on mobile, hover-only on md+ */}
       <div
-        className={`absolute inset-0 transition-opacity duration-400 ${
-          hovered ? "opacity-100" : "opacity-0"
+        className={`absolute inset-0 transition-opacity duration-400 md:opacity-0 ${
+          hovered ? "md:opacity-100" : ""
         }`}
         style={{
           background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)",
         }}
       />
+      {/* Content — always visible on mobile, hover-reveal on md+ */}
       <div
-        className={`absolute inset-0 flex flex-col justify-end p-6 transition-all duration-400 ${
-          hovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+        className={`absolute inset-0 flex flex-col justify-end p-6 transition-all duration-400 md:opacity-0 md:translate-y-4 ${
+          hovered ? "md:opacity-100 md:translate-y-0" : ""
         }`}
       >
         <div className="flex items-end justify-between">

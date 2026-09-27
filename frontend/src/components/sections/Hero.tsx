@@ -40,7 +40,7 @@ function AnimatedCounter({ target, suffix = "" }: { target: string; suffix?: str
 
 export function Hero() {
   return (
-    <section className="relative h-screen min-h-[700px] flex items-end pb-20 overflow-hidden">
+    <section className="relative h-screen min-h-[600px] landscape:min-h-[500px] flex items-end pb-16 md:pb-20 overflow-hidden">
       {/* Background Image */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"

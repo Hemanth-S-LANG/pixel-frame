@@ -117,10 +117,10 @@ export function Nav() {
         </div>
 
         {/* Mobile Controls */}
-        <div className="flex md:hidden items-center gap-3">
+        <div className="flex md:hidden items-center gap-1">
           <ThemeToggle />
           <button
-            className="text-foreground hover:text-primary transition-colors"
+            className="w-11 h-11 flex items-center justify-center text-foreground hover:text-primary transition-colors"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
           >

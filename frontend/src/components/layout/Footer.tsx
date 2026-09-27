@@ -100,7 +100,7 @@ export function Footer() {
                     target={s.href.startsWith("http") ? "_blank" : undefined}
                     rel={s.href.startsWith("http") ? "noopener noreferrer" : undefined}
                     aria-label={s.label}
-                    className="w-9 h-9 border border-border flex items-center justify-center
+                    className="w-11 h-11 border border-border flex items-center justify-center
                                text-muted-foreground hover:border-primary hover:text-primary
                                transition-all duration-200 rounded-full"
                   >

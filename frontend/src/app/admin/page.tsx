@@ -1075,13 +1075,13 @@ export default function AdminPage() {
               </div>
 
               {/* Search input and page limit selector */}
-              <div className="flex items-center gap-3">
-                <div className="relative">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-0 sm:flex-none">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
                     placeholder="Search name, email, phone..."
-                    className="pl-9 pr-4 py-2 bg-input border border-border text-foreground text-xs focus:outline-none focus:border-primary w-60"
+                    className="pl-9 pr-4 py-2 bg-input border border-border text-foreground text-xs focus:outline-none focus:border-primary w-full sm:w-60"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />

@@ -129,23 +129,33 @@ export function Testimonials() {
           </motion.div>
 
           {/* Carousel Controls */}
-          <div className="flex items-center justify-center gap-4 mt-6">
-            <button onClick={prev} className="text-muted-foreground hover:text-primary transition-colors" aria-label="Previous">
+          <div className="flex items-center justify-center gap-2 mt-6">
+            <button
+              onClick={prev}
+              className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+              aria-label="Previous testimonial"
+            >
               <ChevronLeft size={20} />
             </button>
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               {testimonials.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrent(i)}
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    i === current ? "bg-primary" : "bg-border-strong"
-                  }`}
+                  className={`w-8 h-8 flex items-center justify-center transition-colors`}
                   aria-label={`Go to testimonial ${i + 1}`}
-                />
+                >
+                  <span className={`w-2 h-2 rounded-full transition-colors block ${
+                    i === current ? "bg-primary" : "bg-border-strong"
+                  }`} />
+                </button>
               ))}
             </div>
-            <button onClick={next} className="text-muted-foreground hover:text-primary transition-colors" aria-label="Next">
+            <button
+              onClick={next}
+              className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+              aria-label="Next testimonial"
+            >
               <ChevronRight size={20} />
             </button>
           </div>
